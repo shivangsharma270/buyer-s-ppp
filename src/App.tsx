@@ -179,16 +179,29 @@ export default function App() {
   }, [filteredData]);
 
   const ticketStageData = useMemo(() => {
-    const stageCounts: Record<string, number> = {};
+    const stageGroups: Record<string, Record<string, number>> = {};
+    const issueTypes = new Set<string>();
+
     filteredData.forEach(item => {
       const stage = item.ticketStage;
       if (stage && stage.toLowerCase() !== 'unassigned') {
-        stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+        if (!stageGroups[stage]) stageGroups[stage] = {};
+        const issue = item.typeOfIssue || 'Unspecified';
+        issueTypes.add(issue);
+        stageGroups[stage][issue] = (stageGroups[stage][issue] || 0) + 1;
       }
     });
-    return Object.entries(stageCounts)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
+
+    const data = Object.entries(stageGroups).map(([name, issues]) => ({
+      name,
+      ...issues,
+      total: Object.values(issues).reduce((a, b) => a + b, 0)
+    })).sort((a, b) => b.total - a.total);
+
+    return {
+      data,
+      issueTypes: Array.from(issueTypes).sort()
+    };
   }, [filteredData]);
 
   const COLORS = [
@@ -665,16 +678,16 @@ export default function App() {
                   <div className="mb-6">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                       <div className="w-1 h-6 bg-violet-500 rounded-full" />
-                      Ticket Stage Distribution
+                      Ticket Stage Distribution by Issue Type
                     </h3>
-                    <p className="text-xs text-slate-500">Current status of all reported tickets.</p>
+                    <p className="text-xs text-slate-500">Breakdown of stages by the type of issue reported.</p>
                   </div>
                   
                   <div className="h-[350px] w-full">
-                    {ticketStageData.length > 0 ? (
+                    {ticketStageData.data.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart 
-                          data={ticketStageData} 
+                          data={ticketStageData.data} 
                           layout="vertical"
                           margin={{ top: 5, right: 40, left: 100, bottom: 5 }}
                         >
@@ -698,20 +711,30 @@ export default function App() {
                               fontWeight: '700'
                             }}
                           />
-                          <Bar 
-                            dataKey="value" 
-                            radius={[0, 4, 4, 0]}
-                            barSize={30}
-                          >
-                            <LabelList 
-                              dataKey="value" 
-                              position="right" 
-                              style={{ fontSize: '10px', fontWeight: '800', fill: '#64748B' }} 
-                            />
-                            {ticketStageData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={getChartColor(index + 4)} />
-                            ))}
-                          </Bar>
+                          <Legend 
+                            verticalAlign="top" 
+                            align="right"
+                            iconType="circle"
+                            wrapperStyle={{ paddingBottom: '20px', fontSize: '10px', fontWeight: '700' }}
+                          />
+                          {ticketStageData.issueTypes.map((issueType, index) => (
+                            <Bar 
+                              key={issueType} 
+                              dataKey={issueType} 
+                              stackId="a" 
+                              fill={getChartColor(index + 5)} 
+                              radius={[0, 0, 0, 0]}
+                              barSize={30}
+                            >
+                              {index === ticketStageData.issueTypes.length - 1 && (
+                                <LabelList 
+                                  dataKey="total" 
+                                  position="right" 
+                                  style={{ fontSize: '10px', fontWeight: '800', fill: '#64748B' }} 
+                                />
+                              )}
+                            </Bar>
+                          ))}
                         </BarChart>
                       </ResponsiveContainer>
                     ) : (
