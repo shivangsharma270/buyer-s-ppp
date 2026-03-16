@@ -5,6 +5,9 @@ export interface SourceOfVisitData {
   buyerGlid: string;
   source: string;
   typeOfIssue: string;
+  pppApplicable: string;
+  ticketId: string;
+  ticketStage: string;
 }
 
 const SOURCE_OF_VISIT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/11Uz1ZKM3Kzu0-Wt_Uw5k0kODwR9vrotPazo2irtZwWY/export?format=csv&gid=1875412395';
@@ -27,12 +30,18 @@ export async function fetchSourceOfVisitData(): Promise<SourceOfVisitData[]> {
             const rawGlid = (row['Buyer GLID (Not Set = unidentified)'] || '').trim();
             const source = (row['Source'] || '').trim();
             const typeOfIssue = (row['Type of Issue'] || '').trim();
+            const pppApplicable = (row['PPP Applicable'] || '').trim();
+            const ticketId = (row['Ticket ID'] || '').trim();
+            const ticketStage = (row['Ticket Stage'] || '').trim();
             
             return {
               date: date,
               buyerGlid: rawGlid,
               source: source,
               typeOfIssue: typeOfIssue,
+              pppApplicable: pppApplicable,
+              ticketId: ticketId,
+              ticketStage: ticketStage,
             };
           });
           resolve(data);

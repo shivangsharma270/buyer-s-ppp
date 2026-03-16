@@ -20,7 +20,8 @@ import {
   ResponsiveContainer,
   Cell,
   PieChart,
-  Pie
+  Pie,
+  LabelList
 } from 'recharts';
 
 function cn(...inputs: ClassValue[]) {
@@ -28,7 +29,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'source-of-visit' | 'analytics'>('source-of-visit');
+  const [activeTab, setActiveTab] = useState<'ppp-details' | 'analytics'>('ppp-details');
   const [data, setData] = useState<SourceOfVisitData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +119,18 @@ export default function App() {
       d.source.toLowerCase().includes('grievance') || 
       d.source.toLowerCase().includes('consumer help') || 
       d.source.toLowerCase().includes('appstore')
-    ).length
+    ).length,
+    // PPP Applicable Analysis
+    pppYes: filteredData.filter(d => d.pppApplicable.toLowerCase() === 'yes').length,
+    pppNo: filteredData.filter(d => d.pppApplicable.toLowerCase() === 'no').length,
+    // Ticket Stage Analysis
+    ticketStageCounts: filteredData.reduce((acc, d) => {
+      const stage = d.ticketStage;
+      if (stage && stage.toLowerCase() !== 'unassigned') {
+        acc[stage] = (acc[stage] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>)
   };
 
   const chartData = useMemo(() => {
@@ -162,6 +174,19 @@ export default function App() {
       issueCounts[issue] = (issueCounts[issue] || 0) + 1;
     });
     return Object.entries(issueCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredData]);
+
+  const ticketStageData = useMemo(() => {
+    const stageCounts: Record<string, number> = {};
+    filteredData.forEach(item => {
+      const stage = item.ticketStage;
+      if (stage && stage.toLowerCase() !== 'unassigned') {
+        stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+      }
+    });
+    return Object.entries(stageCounts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
   }, [filteredData]);
@@ -290,39 +315,9 @@ export default function App() {
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Visits</p>
-            <div className="flex items-end justify-between">
-              <h2 className="text-3xl font-black text-slate-800">{loading ? '...' : stats.total}</h2>
-              <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
-                <TableIcon className="w-5 h-5" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Unique GLIDs</p>
-            <div className="flex items-end justify-between">
-              <h2 className="text-3xl font-black text-slate-800">{loading ? '...' : stats.uniqueGlids}</h2>
-              <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
-                <AlertCircle className="w-5 h-5" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Unique Sources</p>
-            <div className="flex items-end justify-between">
-              <h2 className="text-3xl font-black text-slate-800">{loading ? '...' : stats.sources}</h2>
-              <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
-                <LayoutDashboard className="w-5 h-5" />
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Detailed Analysis Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
           {/* Help Page Analysis */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -374,21 +369,68 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          {/* PPP Applicable Analysis */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <div className="w-2 h-4 bg-violet-600 rounded-full" />
+                PPP Applicable
+              </h3>
+              <span className="px-3 py-1 bg-violet-50 text-violet-700 rounded-full text-xs font-black border border-violet-100 shadow-sm">
+                Total: {loading ? '...' : (stats.pppYes + stats.pppNo)}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Yes</p>
+                <p className="text-2xl font-black text-emerald-600">{loading ? '...' : stats.pppYes}</p>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">No</p>
+                <p className="text-2xl font-black text-rose-400">{loading ? '...' : stats.pppNo}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Ticket Stage Analysis */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <div className="w-2 h-4 bg-amber-600 rounded-full" />
+                Ticket Stage
+              </h3>
+              <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-black border border-amber-100 shadow-sm">
+                Total: {loading ? '...' : stats.total}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+              {Object.entries(stats.ticketStageCounts).map(([stage, count], idx) => (
+                <div key={stage} className="bg-amber-50/50 p-2 rounded-lg border border-amber-100">
+                  <p className="text-[9px] font-black text-amber-800 uppercase tracking-widest mb-0.5 leading-tight">{stage}</p>
+                  <p className="text-lg font-black text-slate-900">{loading ? '...' : count}</p>
+                </div>
+              ))}
+              {Object.keys(stats.ticketStageCounts).length === 0 && (
+                <div className="col-span-2 py-4 text-center text-[10px] font-bold text-slate-400 uppercase">No Stage Data</div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit mb-6 border border-slate-200">
           <button
-            onClick={() => setActiveTab('source-of-visit')}
+            onClick={() => setActiveTab('ppp-details')}
             className={cn(
               "px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2",
-              activeTab === 'source-of-visit'
+              activeTab === 'ppp-details'
                 ? "bg-white text-blue-600 shadow-sm"
                 : "text-slate-500 hover:text-slate-700"
             )}
           >
             <TableIcon className="w-3.5 h-3.5" />
-            Source of Visit
+            PPP Details (Yes)
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
@@ -556,7 +598,7 @@ export default function App() {
                 </div>
 
                 {/* Issue Type Chart Section */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm lg:col-span-2">
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                   <div className="mb-6">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                       <div className="w-1 h-6 bg-amber-500 rounded-full" />
@@ -565,13 +607,13 @@ export default function App() {
                     <p className="text-xs text-slate-500">Distribution of different issue types reported.</p>
                   </div>
                   
-                  <div className="h-[400px] w-full">
+                  <div className="h-[350px] w-full">
                     {issueTypeData.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart 
                           data={issueTypeData} 
                           layout="vertical"
-                          margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                          margin={{ top: 5, right: 40, left: 100, bottom: 5 }}
                         >
                           <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E2E8F0" />
                           <XAxis type="number" hide />
@@ -598,6 +640,11 @@ export default function App() {
                             radius={[0, 4, 4, 0]}
                             barSize={30}
                           >
+                            <LabelList 
+                              dataKey="value" 
+                              position="right" 
+                              style={{ fontSize: '10px', fontWeight: '800', fill: '#64748B' }} 
+                            />
                             {issueTypeData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={getChartColor(index + 2)} />
                             ))}
@@ -612,6 +659,69 @@ export default function App() {
                     )}
                   </div>
                 </div>
+
+                {/* Ticket Stage Chart Section */}
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                  <div className="mb-6">
+                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                      <div className="w-1 h-6 bg-violet-500 rounded-full" />
+                      Ticket Stage Distribution
+                    </h3>
+                    <p className="text-xs text-slate-500">Current status of all reported tickets.</p>
+                  </div>
+                  
+                  <div className="h-[350px] w-full">
+                    {ticketStageData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart 
+                          data={ticketStageData} 
+                          layout="vertical"
+                          margin={{ top: 5, right: 40, left: 100, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E2E8F0" />
+                          <XAxis type="number" hide />
+                          <YAxis 
+                            dataKey="name" 
+                            type="category" 
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 10, fontWeight: 700, fill: '#64748B' }}
+                            width={120}
+                          />
+                          <Tooltip 
+                            cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                            contentStyle={{ 
+                              borderRadius: '16px', 
+                              border: '1px solid #F1F5F9', 
+                              boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                              fontSize: '11px',
+                              fontWeight: '700'
+                            }}
+                          />
+                          <Bar 
+                            dataKey="value" 
+                            radius={[0, 4, 4, 0]}
+                            barSize={30}
+                          >
+                            <LabelList 
+                              dataKey="value" 
+                              position="right" 
+                              style={{ fontSize: '10px', fontWeight: '800', fill: '#64748B' }} 
+                            />
+                            {ticketStageData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={getChartColor(index + 4)} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
+                        <BarChart3 className="w-12 h-12 opacity-10" />
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">No Data for Ticket Stage Analysis</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
@@ -621,10 +731,13 @@ export default function App() {
                 <table className="w-full text-left border-collapse table-fixed">
                   <thead>
                     <tr>
-                      <th className="w-1/5 px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Date</th>
-                      <th className="w-1/4 px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Buyer GLID</th>
-                      <th className="w-1/4 px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Source</th>
-                      <th className="w-auto px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Type of Issue</th>
+                      <th className="w-[10%] px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Date</th>
+                      <th className="w-[12%] px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Ticket ID</th>
+                      <th className="w-[15%] px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Buyer GLID</th>
+                      <th className="w-[15%] px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Source</th>
+                      <th className="w-[18%] px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Type of Issue</th>
+                      <th className="w-[15%] px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Stage</th>
+                      <th className="w-auto px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">PPP</th>
                     </tr>
                   </thead>
                 </table>
@@ -634,20 +747,25 @@ export default function App() {
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <table className="w-full text-left border-collapse table-fixed">
                   <tbody className="divide-y divide-slate-100">
-                    {filteredData.length > 0 ? (
-                      filteredData.map((row, idx) => (
+                    {filteredData.filter(d => d.pppApplicable.toLowerCase() === 'yes').length > 0 ? (
+                      filteredData.filter(d => d.pppApplicable.toLowerCase() === 'yes').map((row, idx) => (
                         <tr key={idx} className="group hover:bg-blue-50/30 transition-all">
-                          <td className="w-1/5 px-8 py-4">
+                          <td className="w-[10%] px-8 py-4">
                             <span className="text-sm font-medium text-slate-600 group-hover:text-blue-600 transition-colors">
                               {row.date}
                             </span>
                           </td>
-                          <td className="w-1/4 px-8 py-4">
+                          <td className="w-[12%] px-8 py-4">
+                            <span className="text-xs font-bold text-slate-700">
+                              {row.ticketId || '—'}
+                            </span>
+                          </td>
+                          <td className="w-[15%] px-8 py-4">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-blue-50 text-blue-600 border-blue-100 shadow-sm transition-all">
                               {row.buyerGlid}
                             </span>
                           </td>
-                          <td className="w-1/4 px-8 py-4">
+                          <td className="w-[15%] px-8 py-4">
                             <span className={cn(
                               "inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold border shadow-sm",
                               getSourceColor(row.source)
@@ -655,19 +773,29 @@ export default function App() {
                               {row.source}
                             </span>
                           </td>
-                          <td className="w-auto px-8 py-4">
+                          <td className="w-[18%] px-8 py-4">
                             <span className="text-xs font-semibold text-slate-500 italic">
                               {row.typeOfIssue || '—'}
+                            </span>
+                          </td>
+                          <td className="w-[15%] px-8 py-4">
+                            <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                              {row.ticketStage || '—'}
+                            </span>
+                          </td>
+                          <td className="w-auto px-8 py-4">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
+                              {row.pppApplicable}
                             </span>
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={3} className="px-8 py-24 text-center">
+                        <td colSpan={6} className="px-8 py-24 text-center">
                           <div className="flex flex-col items-center gap-2 opacity-30">
                             <TableIcon className="w-12 h-12" />
-                            <p className="text-sm font-bold uppercase tracking-widest">No Records Match Filters</p>
+                            <p className="text-sm font-bold uppercase tracking-widest text-slate-400">No "Yes" Entries Found</p>
                           </div>
                         </td>
                       </tr>
