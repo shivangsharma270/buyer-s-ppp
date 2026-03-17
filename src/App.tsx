@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { LayoutDashboard, Table as TableIcon, Loader2, AlertCircle, RefreshCw, Calendar, Filter, X, BarChart3 } from 'lucide-react';
-import { fetchSourceOfVisitData, fetchTSDataBifurcation, fetchPPPInScopeData, SourceOfVisitData, TSDataBifurcationRow, PPPInScopeRow } from './services/sheetService';
+import { fetchSourceOfVisitData, fetchTSDataBifurcation, fetchPPPInScopeData, fetchTSClosedTicketsData, SourceOfVisitData, TSDataBifurcationRow, PPPInScopeRow, TSClosedTicketsRow } from './services/sheetService';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { parse, isWithinInterval, startOfDay, endOfDay, isValid, format } from 'date-fns';
@@ -29,7 +29,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'visit-data' | 'ts-bifurcation' | 'ppp-in-scope' | 'overall'>('ts-bifurcation');
+  const [activeTab, setActiveTab] = useState<'visit-data' | 'ts-bifurcation' | 'ts-closed-tickets' | 'ppp-in-scope' | 'overall'>('ts-bifurcation');
   const [data, setData] = useState<SourceOfVisitData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +47,11 @@ export default function App() {
   const [pppInScopeError, setPppInScopeError] = useState<string | null>(null);
   const [selectedPppRow, setSelectedPppRow] = useState<PPPInScopeRow | null>(null);
 
+  const [tsClosedData, setTsClosedData] = useState<TSClosedTicketsRow[]>([]);
+  const [tsClosedLoading, setTsClosedLoading] = useState(true);
+  const [tsClosedError, setTsClosedError] = useState<string | null>(null);
+  const [selectedTsClosedRow, setSelectedTsClosedRow] = useState<TSClosedTicketsRow | null>(null);
+
   // Filter States
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -59,6 +64,14 @@ export default function App() {
   const [selectedTsPppStatus, setSelectedTsPppStatus] = useState<string>('all');
   const [selectedTsStage, setSelectedTsStage] = useState<string>('all');
   const [tsSearchTerm, setTsSearchTerm] = useState<string>('');
+
+  const [tsClosedStartDate, setTsClosedStartDate] = useState<string>('');
+  const [tsClosedEndDate, setTsClosedEndDate] = useState<string>('');
+  const [selectedTsClosedCustType, setSelectedTsClosedCustType] = useState<string>('all');
+  const [selectedTsClosedTypeOfIssue, setSelectedTsClosedTypeOfIssue] = useState<string>('all');
+  const [selectedTsClosedPppStatus, setSelectedTsClosedPppStatus] = useState<string>('all');
+  const [selectedTsClosedStage, setSelectedTsClosedStage] = useState<string>('all');
+  const [tsClosedSearchTerm, setTsClosedSearchTerm] = useState<string>('');
 
   const loadData = async () => {
     setLoading(true);
@@ -102,10 +115,25 @@ export default function App() {
     }
   };
 
+  const loadTSClosedData = async () => {
+    setTsClosedLoading(true);
+    setTsClosedError(null);
+    try {
+      const result = await fetchTSClosedTicketsData();
+      setTsClosedData(result);
+    } catch (err) {
+      setTsClosedError('Failed to fetch TS Closed Tickets Data. Please ensure the sheet is public.');
+      console.error(err);
+    } finally {
+      setTsClosedLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
     loadTSData();
     loadPPPInScopeData();
+    loadTSClosedData();
   }, []);
 
   // Helper to parse dates from various formats
@@ -386,8 +414,155 @@ export default function App() {
     return Object.entries(counts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
+      .slice(0, 10);
   }, [filteredTsData]);
+
+  // Closed Tickets Unique Values
+  const uniqueTsClosedCustTypes = useMemo(() => {
+    const types = new Set(tsClosedData.map(item => (item.sellerCusttype || '').trim()).filter(Boolean));
+    return Array.from(types).sort();
+  }, [tsClosedData]);
+
+  const uniqueTsClosedTypeOfIssues = useMemo(() => {
+    const types = new Set(tsClosedData.map(item => (item.typeOfIssue || '').trim()).filter(Boolean));
+    return Array.from(types).sort();
+  }, [tsClosedData]);
+
+  const uniqueTsClosedPppStatuses = useMemo(() => {
+    const statuses = new Set(tsClosedData.map(item => (item.pppStatus || '').trim()).filter(Boolean));
+    return Array.from(statuses).sort();
+  }, [tsClosedData]);
+
+  const uniqueTsClosedStages = useMemo(() => {
+    const stages = new Set(tsClosedData.map(item => (item.ticketStage || '').trim()).filter(Boolean));
+    return Array.from(stages).sort();
+  }, [tsClosedData]);
+
+  // Filtered Closed Tickets Data
+  const filteredTsClosedData = useMemo(() => {
+    return tsClosedData.filter(item => {
+      const itemCustType = (item.sellerCusttype || '').trim();
+      const itemTypeOfIssue = (item.typeOfIssue || '').trim();
+      const itemPppStatus = (item.pppStatus || '').trim();
+      const itemStage = (item.ticketStage || '').trim();
+      const itemTicketId = (item.ticketId || '').trim();
+      
+      let passesCustTypeFilter = selectedTsClosedCustType === 'all' || itemCustType === selectedTsClosedCustType;
+      let passesTypeOfIssueFilter = selectedTsClosedTypeOfIssue === 'all' || itemTypeOfIssue === selectedTsClosedTypeOfIssue;
+      let passesPppStatusFilter = selectedTsClosedPppStatus === 'all' || itemPppStatus === selectedTsClosedPppStatus;
+      let passesStageFilter = selectedTsClosedStage === 'all' || itemStage === selectedTsClosedStage;
+      let passesSearchFilter = tsClosedSearchTerm === '' || itemTicketId.includes(tsClosedSearchTerm);
+      let passesDateFilter = true;
+
+      // Date filter based on Close date column - only filter if dates are selected
+      if (tsClosedStartDate || tsClosedEndDate) {
+        const closeDate = (item.closeDate || '').trim();
+        
+        if (closeDate) {
+          let itemDate: Date | null = null;
+          
+          // Try parsing with different formats
+          const dateFormats = ['dd-MMM-yyyy', 'MM/dd/yyyy', 'dd/MM/yyyy', 'yyyy-MM-dd', 'M/d/yyyy', 'd/M/yyyy'];
+          
+          for (const format of dateFormats) {
+            try {
+              const parsed = parse(closeDate, format, new Date());
+              if (isValid(parsed)) {
+                itemDate = parsed;
+                break;
+              }
+            } catch (e) {
+              // Continue to next format
+            }
+          }
+          
+          // If we successfully parsed the date, apply the filter
+          if (itemDate) {
+            if (tsClosedStartDate && tsClosedEndDate) {
+              // Both dates selected - check if in range
+              const startDate = parse(tsClosedStartDate, 'yyyy-MM-dd', new Date());
+              const endDate = parse(tsClosedEndDate, 'yyyy-MM-dd', new Date());
+              
+              if (isValid(startDate) && isValid(endDate)) {
+                passesDateFilter = itemDate >= startOfDay(startDate) && itemDate <= endOfDay(endDate);
+              }
+            } else if (tsClosedStartDate) {
+              // Only start date selected
+              const startDate = parse(tsClosedStartDate, 'yyyy-MM-dd', new Date());
+              if (isValid(startDate)) {
+                passesDateFilter = itemDate >= startOfDay(startDate);
+              }
+            } else if (tsClosedEndDate) {
+              // Only end date selected
+              const endDate = parse(tsClosedEndDate, 'yyyy-MM-dd', new Date());
+              if (isValid(endDate)) {
+                passesDateFilter = itemDate <= endOfDay(endDate);
+              }
+            }
+          } else {
+            // Could not parse the date - exclude this row
+            passesDateFilter = false;
+          }
+        } else {
+          // No close date in data - exclude this row
+          passesDateFilter = false;
+        }
+      }
+
+      return passesDateFilter && passesCustTypeFilter && passesTypeOfIssueFilter && passesPppStatusFilter && passesStageFilter && passesSearchFilter;
+    });
+  }, [tsClosedData, tsClosedStartDate, tsClosedEndDate, selectedTsClosedCustType, selectedTsClosedTypeOfIssue, selectedTsClosedPppStatus, selectedTsClosedStage, tsClosedSearchTerm]);
+
+  // Closed Tickets Chart Data
+  const tsClosedIssueTypeData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredTsClosedData.forEach(item => {
+      const key = (item.typeOfIssue || '').trim() || 'Unknown';
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [filteredTsClosedData]);
+
+  const tsClosedSellerCusttypeData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredTsClosedData.forEach(item => {
+      const key = (item.sellerCusttype || '').trim() || 'Unknown';
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [filteredTsClosedData]);
+
+  const tsClosedPppStatusData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredTsClosedData.forEach(item => {
+      const key = (item.pppStatus || '').trim() || 'Unknown';
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [filteredTsClosedData]);
+
+  const tsClosedTicketStageData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredTsClosedData.forEach(item => {
+      const key = (item.ticketStage || '').trim() || 'Unknown';
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [filteredTsClosedData]);
+
+  const tsClosedClosingCommentData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredTsClosedData.forEach(item => {
+      if (item.closingComment && item.closingComment.trim() !== '') {
+        const key = item.closingComment.trim();
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    });
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [filteredTsClosedData]);
 
   const COLORS = [
     '#3B82F6', // Blue
@@ -462,8 +637,8 @@ export default function App() {
     return 'bg-slate-50 text-slate-700 border-slate-100';
   };
 
-  const activeLoading = activeTab === 'visit-data' ? loading : activeTab === 'ts-bifurcation' ? tsLoading : activeTab === 'ppp-in-scope' ? pppInScopeLoading : loading;
-  const activeError = activeTab === 'visit-data' ? error : activeTab === 'ts-bifurcation' ? tsError : activeTab === 'ppp-in-scope' ? pppInScopeError : error;
+  const activeLoading = activeTab === 'visit-data' ? loading : activeTab === 'ts-bifurcation' ? tsLoading : activeTab === 'ts-closed-tickets' ? tsClosedLoading : activeTab === 'ppp-in-scope' ? pppInScopeLoading : loading;
+  const activeError = activeTab === 'visit-data' ? error : activeTab === 'ts-bifurcation' ? tsError : activeTab === 'ts-closed-tickets' ? tsClosedError : activeTab === 'ppp-in-scope' ? pppInScopeError : error;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans">
@@ -476,7 +651,7 @@ export default function App() {
                 <LayoutDashboard className="w-4 h-4 text-white" />
               </div>
               <h1 className="text-sm font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600">
-                Buyer's Payment Protection Plan Dashboard
+                Buyer's Payment Protection Plan
               </h1>
             </div>
             <div className="flex items-center gap-4">
@@ -485,7 +660,7 @@ export default function App() {
                 Live Data
               </div>
               <button 
-                onClick={activeTab === 'ts-bifurcation' ? loadTSData : activeTab === 'ppp-in-scope' ? loadPPPInScopeData : loadData}
+                onClick={activeTab === 'ts-bifurcation' ? loadTSData : activeTab === 'ts-closed-tickets' ? loadTSClosedData : activeTab === 'ppp-in-scope' ? loadPPPInScopeData : loadData}
                 disabled={activeLoading}
                 className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-all text-xs font-semibold disabled:opacity-50 border border-blue-100"
               >
@@ -509,6 +684,21 @@ export default function App() {
               <TableIcon className="w-4 h-4" />
               TS Data Bifurcation
               {activeTab === 'ts-bifurcation' && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-600 rounded-full" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('ts-closed-tickets')}
+              className={cn(
+                "h-full px-1 text-sm font-black transition-all flex items-center gap-2 relative",
+                activeTab === 'ts-closed-tickets'
+                  ? "text-emerald-600"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              <TableIcon className="w-4 h-4" />
+              TS Data Bifurcation- Closed Tickets
+              {activeTab === 'ts-closed-tickets' && (
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-600 rounded-full" />
               )}
             </button>
@@ -882,7 +1072,7 @@ export default function App() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                       <div className="w-2 h-4 bg-amber-600 rounded-full" />
-                      Ticket Stage Bifurcation Out Of
+                      Ticket Stage
                     </h3>
                     <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-black border border-amber-100 shadow-sm">
                       Total: {loading ? '...' : stats.total}
@@ -1563,7 +1753,7 @@ export default function App() {
                 <div className="h-[280px] w-full">
                   <div className="w-full overflow-x-auto">
                     {tsClosingCommentData.length > 0 ? (
-                      <div style={{ minWidth: Math.max(600, tsClosingCommentData.length * 220) }}>
+                      <div style={{ minWidth: Math.max(600, tsClosingCommentData.length * 140) }}>
                         <ResponsiveContainer width="100%" height={340}>
                           <BarChart 
                             data={tsClosingCommentData} 
@@ -1709,6 +1899,293 @@ export default function App() {
                 </div>
               </div>
             </div>
+          ) : activeTab === 'ts-closed-tickets' ? (
+            <div className="p-8 flex-1 flex flex-col gap-8">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                      <div className="w-2 h-4 bg-blue-600 rounded-full" />
+                      Total Closed Tickets
+                    </h3>
+                    <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-black border border-blue-100 shadow-sm">
+                      Total: {tsClosedLoading ? '...' : filteredTsClosedData.length}
+                    </span>
+                  </div>
+                  <div className="text-3xl font-black text-blue-600">{tsClosedLoading ? '—' : filteredTsClosedData.length}</div>
+                  <p className="text-xs text-slate-500 mt-2">from {tsClosedLoading ? '—' : tsClosedData.length} total entries</p>
+                </div>
+              </div>
+
+              {/* Filters Section */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Filter className="w-4 h-4 text-slate-400" />
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Filters</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 block mb-2">Start Date</label>
+                    <input
+                      type="date"
+                      value={tsClosedStartDate}
+                      onChange={(e) => setTsClosedStartDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 block mb-2">End Date</label>
+                    <input
+                      type="date"
+                      value={tsClosedEndDate}
+                      onChange={(e) => setTsClosedEndDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 block mb-2">Seller Custtype</label>
+                    <select
+                      value={selectedTsClosedCustType}
+                      onChange={(e) => setSelectedTsClosedCustType(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="all">All Types</option>
+                      {uniqueTsClosedCustTypes.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 block mb-2">Type of Issue</label>
+                    <select
+                      value={selectedTsClosedTypeOfIssue}
+                      onChange={(e) => setSelectedTsClosedTypeOfIssue(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="all">All Issues</option>
+                      {uniqueTsClosedTypeOfIssues.map(issue => (
+                        <option key={issue} value={issue}>{issue}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 block mb-2">PPP Status</label>
+                    <select
+                      value={selectedTsClosedPppStatus}
+                      onChange={(e) => setSelectedTsClosedPppStatus(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="all">All Statuses</option>
+                      {uniqueTsClosedPppStatuses.map(status => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 block mb-2">Ticket Stage</label>
+                    <select
+                      value={selectedTsClosedStage}
+                      onChange={(e) => setSelectedTsClosedStage(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="all">All Stages</option>
+                      {uniqueTsClosedStages.map(stage => (
+                        <option key={stage} value={stage}>{stage}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 block mb-2">Search Ticket ID</label>
+                    <input
+                      type="text"
+                      value={tsClosedSearchTerm}
+                      onChange={(e) => setTsClosedSearchTerm(e.target.value)}
+                      placeholder="Search..."
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Charts Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Type of Issue Chart */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Tickets by Type of Issue</h3>
+                  <div className="custom-scrollbar overflow-x-auto w-full" style={{ maxHeight: '300px' }}>
+                    <div style={{ minWidth: '500px', width: '100%' }}>
+                      <ResponsiveContainer width={500} height={280}>
+                        <BarChart data={tsClosedIssueTypeData} margin={{ top: 20, right: 30, left: 10, bottom: 80 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
+                          <YAxis width={40} />
+                          <Tooltip />
+                          <Bar dataKey="value" fill="#3B82F6" onClick={(data) => { setGraphClickType('typeOfIssue'); setGraphClickValue(data.name); setGraphClickedTickets(filteredTsClosedData.filter(t => (t.typeOfIssue || '').trim() === data.name)); }} cursor="pointer" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Seller Custtype Chart */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Tickets by Seller Custtype</h3>
+                  <div className="custom-scrollbar overflow-x-auto w-full" style={{ maxHeight: '300px' }}>
+                    <div style={{ minWidth: '500px', width: '100%' }}>
+                      <ResponsiveContainer width={500} height={280}>
+                        <BarChart data={tsClosedSellerCusttypeData} margin={{ top: 20, right: 30, left: 10, bottom: 80 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
+                          <YAxis width={40} />
+                          <Tooltip />
+                          <Bar dataKey="value" fill="#10B981" onClick={(data) => { setGraphClickType('sellerCusttype'); setGraphClickValue(data.name); setGraphClickedTickets(filteredTsClosedData.filter(t => (t.sellerCusttype || '').trim() === data.name)); }} cursor="pointer" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PPP Status Chart */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Tickets by PPP Status</h3>
+                  <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <PieChart>
+                        <Pie data={tsClosedPppStatusData} cx="50%" cy="50%" labelLine={false} label={({ name, value }) => `${name}: ${value}`} fill="#8884d8" dataKey="value" onClick={(data) => { setGraphClickType('pppStatus'); setGraphClickValue(data.name); setGraphClickedTickets(filteredTsClosedData.filter(t => (t.pppStatus || '').trim() === data.name)); }} cursor="pointer">
+                          {tsClosedPppStatusData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={getChartColor(index)} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Ticket Stage Chart */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Tickets by Ticket Stage</h3>
+                  <div className="custom-scrollbar overflow-x-auto w-full" style={{ maxHeight: '300px' }}>
+                    <div style={{ minWidth: '500px', width: '100%' }}>
+                      <ResponsiveContainer width={500} height={280}>
+                        <BarChart data={tsClosedTicketStageData} margin={{ top: 20, right: 30, left: 10, bottom: 80 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
+                          <YAxis width={40} />
+                          <Tooltip />
+                          <Bar dataKey="value" fill="#F59E0B" onClick={(data) => { setGraphClickType('ticketStage'); setGraphClickValue(data.name); setGraphClickedTickets(filteredTsClosedData.filter(t => (t.ticketStage || '').trim() === data.name)); }} cursor="pointer" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Closing Comment Chart */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 lg:col-span-2">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Top Closing Comments</h3>
+                  <div className="custom-scrollbar overflow-y-auto w-full" style={{ maxHeight: '400px' }}>
+                    <div style={{ width: '100%' }}>
+                      <ResponsiveContainer width="100%" height={Math.max(250, tsClosedClosingCommentData.length * 40)}>
+                        <BarChart data={tsClosedClosingCommentData} layout="vertical" margin={{ top: 20, right: 30, left: 300, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" width={60} />
+                          <YAxis type="category" dataKey="name" width={290} />
+                          <Tooltip />
+                          <Bar dataKey="value" fill="#8B5CF6" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Table */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                  <h3 className="text-lg font-bold text-slate-800">Closed Tickets Data</h3>
+                  <span className="text-xs font-semibold text-slate-500">
+                    Showing {filteredTsClosedData.length} of {tsClosedData.length} Entries Filtered
+                  </span>
+                </div>
+                <div className="flex-1 overflow-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/50 sticky top-0">
+                        <th className="w-[10%] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Ticket ID</th>
+                        <th className="w-[12%] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Issue Date</th>
+                        <th className="w-[12%] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hidden sm:table-cell">Close Date</th>
+                        <th className="w-[12%] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Buyer GLID</th>
+                        <th className="w-[12%] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hidden sm:table-cell">Seller GLID</th>
+                        <th className="w-[12%] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hidden sm:table-cell">Cust Type</th>
+                        <th className="w-[12%] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Type of Issue</th>
+                        <th className="w-[10%] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">PPP</th>
+                        <th className="w-[10%] px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Stage</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredTsClosedData.length > 0 ? (
+                        filteredTsClosedData.map((row, idx) => (
+                          <tr key={idx} className="group hover:bg-blue-50/30 transition-all">
+                            <td className="w-[10%] px-4 py-4">
+                              <button
+                                onClick={() => setSelectedTsClosedRow(row)}
+                                className="text-xs font-bold text-blue-600 hover:underline"
+                              >
+                                {row.ticketId || '—'}
+                              </button>
+                            </td>
+                            <td className="w-[12%] px-4 py-4">
+                              <span className="text-sm font-medium text-slate-600">
+                                {row.issueDate || '—'}
+                              </span>
+                            </td>
+                            <td className="w-[12%] px-4 py-4 hidden sm:table-cell">
+                              <span className="text-sm font-medium text-slate-600">
+                                {row.closeDate || '—'}
+                              </span>
+                            </td>
+                            <td className="w-[12%] px-4 py-4">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-blue-50 text-blue-600 border-blue-100 shadow-sm">
+                                {row.buyerGlid || '—'}
+                              </span>
+                            </td>
+                            <td className="w-[12%] px-4 py-4 hidden sm:table-cell">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-slate-50 text-slate-700 border-slate-100 shadow-sm">
+                                {row.againstSellerGlid || '—'}
+                              </span>
+                            </td>
+                            <td className="w-[12%] px-4 py-4 hidden sm:table-cell">
+                              <span className="text-xs font-semibold text-slate-500">{row.sellerCusttype || '—'}</span>
+                            </td>
+                            <td className="w-[12%] px-4 py-4">
+                              <span className="text-xs font-semibold text-slate-500">{row.typeOfIssue || '—'}</span>
+                            </td>
+                            <td className="w-[10%] px-4 py-4">
+                              <span className="text-xs font-semibold text-slate-500">{row.pppStatus || '—'}</span>
+                            </td>
+                            <td className="w-[10%] px-4 py-4">
+                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                                {row.ticketStage || '—'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={9} className="px-8 py-24 text-center">
+                            <div className="flex flex-col items-center gap-2 opacity-30">
+                              <TableIcon className="w-12 h-12" />
+                              <p className="text-sm font-bold uppercase tracking-widest text-slate-400">No Entries Found</p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           ) : activeTab === 'ppp-in-scope' ? (
             <div className="p-8 flex-1 flex flex-col gap-8">
               <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
@@ -1718,7 +2195,7 @@ export default function App() {
                       <div className="w-1 h-6 bg-emerald-500 rounded-full" />
                       PPP-In Scope Records
                     </h3>
-                    <p className="text-xs text-slate-500">Click on any row to view detailed information.</p>
+                    <p className="text-xs text-slate-500">Total: {pppInScopeLoading ? '...' : pppInScopeData.length} records | Click on any row to view detailed information.</p>
                   </div>
                 </div>
 
@@ -1726,14 +2203,10 @@ export default function App() {
                   <table className="w-full text-left border-collapse table-auto">
                     <thead>
                       <tr className="bg-slate-50/50 sticky top-0">
-                        {pppInScopeData.length > 0 && Object.keys(pppInScopeData[0]).map((header) => (
-                          <th
-                            key={header}
-                            className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100"
-                          >
-                            {header}
-                          </th>
-                        ))}
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Ticket ID</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Buyer GLID</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Dispute Amount</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Case Study Thread</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1744,20 +2217,23 @@ export default function App() {
                             onClick={() => setSelectedPppRow(row)}
                             className="hover:bg-emerald-50/30 transition-all cursor-pointer group"
                           >
-                            {Object.values(row).map((value, colIdx) => (
-                              <td
-                                key={colIdx}
-                                className="px-4 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800"
-                                title={String(value)}
-                              >
-                                <span className="line-clamp-2">{String(value) || '—'}</span>
-                              </td>
-                            ))}
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">
+                              {row.ticketId || '—'}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">
+                              {row.buyerGlid || '—'}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">
+                              {row.disputeAmount || '—'}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800 line-clamp-2">
+                              {row.caseStudyThread || '—'}
+                            </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={40} className="px-8 py-24 text-center">
+                          <td colSpan={4} className="px-8 py-24 text-center">
                             <div className="flex flex-col items-center gap-2 opacity-30">
                               <TableIcon className="w-12 h-12" />
                               <p className="text-sm font-bold uppercase tracking-widest text-slate-400">No Entries Found</p>
@@ -1800,7 +2276,7 @@ export default function App() {
                 ))}
               </div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                {activeTab === 'ts-bifurcation' ? filteredTsData.length : filteredData.length} of {activeTab === 'ts-bifurcation' ? tsData.length : data.length} Entries Filtered
+                {activeTab === 'ts-bifurcation' ? filteredTsData.length : activeTab === 'ppp-in-scope' ? pppInScopeData.length : filteredData.length} Entries Loaded
               </p>
             </div>
             <div className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm">
@@ -1995,6 +2471,50 @@ export default function App() {
               <button
                 onClick={() => setSelectedPppRow(null)}
                 className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedTsClosedRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-800">Closed Ticket Details</h3>
+              <button
+                onClick={() => setSelectedTsClosedRow(null)}
+                className="text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { label: 'Ticket ID', value: selectedTsClosedRow.ticketId },
+                { label: 'Issue Date', value: selectedTsClosedRow.issueDate },
+                { label: 'Close Date', value: selectedTsClosedRow.closeDate },
+                { label: 'Buyer GLID', value: selectedTsClosedRow.buyerGlid },
+                { label: 'Seller GLID', value: selectedTsClosedRow.againstSellerGlid },
+                { label: 'Seller Custtype', value: selectedTsClosedRow.sellerCusttype },
+                { label: 'Type of Issue', value: selectedTsClosedRow.typeOfIssue },
+                { label: 'Last Updated', value: selectedTsClosedRow.lastUpdated },
+                { label: 'PPP Status', value: selectedTsClosedRow.pppStatus },
+                { label: 'Ticket Stage', value: selectedTsClosedRow.ticketStage },
+                { label: 'Closing Comment', value: selectedTsClosedRow.closingComment },
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+                  <p className="text-sm font-medium text-slate-700 whitespace-pre-wrap">{value || '—'}</p>
+                </div>
+              ))}
+            </div>
+            <div className="p-5 border-t border-slate-100 text-right">
+              <button
+                onClick={() => setSelectedTsClosedRow(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200"
               >
                 Close
               </button>
