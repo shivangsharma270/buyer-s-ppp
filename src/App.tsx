@@ -386,7 +386,7 @@ export default function App() {
     return Object.entries(counts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 10);
+      .slice(0, 5);
   }, [filteredTsData]);
 
   const COLORS = [
@@ -476,7 +476,7 @@ export default function App() {
                 <LayoutDashboard className="w-4 h-4 text-white" />
               </div>
               <h1 className="text-sm font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600">
-                Buyer's Payment Protection Plan
+                Buyer's Payment Protection Plan Dashboard
               </h1>
             </div>
             <div className="flex items-center gap-4">
@@ -882,7 +882,7 @@ export default function App() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                       <div className="w-2 h-4 bg-amber-600 rounded-full" />
-                      Ticket Stage
+                      Ticket Stage Bifurcation Out Of
                     </h3>
                     <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-black border border-amber-100 shadow-sm">
                       Total: {loading ? '...' : stats.total}
@@ -1266,7 +1266,7 @@ export default function App() {
                       Total: {tsLoading ? '...' : filteredTsData.length}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">Tickets in the current date range.</p>
+                  <p className="text-xs text-slate-500">Tickets in the current filter selection.</p>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -1276,10 +1276,10 @@ export default function App() {
                       Unique Buyers
                     </h3>
                     <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-black border border-emerald-100 shadow-sm">
-                      {tsLoading ? '...' : new Set(filteredTsData.map(d => d.buyerGlid)).size}
+                      {tsLoading ? '...' : Array.from(new Set(filteredTsData.map(d => d.buyerGlid))).filter(Boolean).length}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">Distinct buyer GLIDs in selection.</p>
+                  <p className="text-xs text-slate-500">Distinct buyer GLIDs in current filter selection.</p>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -1289,10 +1289,10 @@ export default function App() {
                       Unique Sellers
                     </h3>
                     <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-black border border-amber-100 shadow-sm">
-                      {tsLoading ? '...' : new Set(filteredTsData.map(d => d.againstSellerGlid)).size}
+                      {tsLoading ? '...' : Array.from(new Set(filteredTsData.map(d => d.againstSellerGlid))).filter(Boolean).length}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">Distinct seller GLIDs in selection.</p>
+                  <p className="text-xs text-slate-500">Distinct seller GLIDs in current filter selection.</p>
                 </div>
               </div>
 
@@ -1306,59 +1306,64 @@ export default function App() {
                     <p className="text-xs text-slate-500">Count of tickets by issue type.</p>
                   </div>
                   <div className="h-[280px] w-full">
-                    {tsIssueTypeData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart 
-                          data={tsIssueTypeData} 
-                          margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis 
-                            dataKey="name" 
-                            type="category" 
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fontSize: 10, fontWeight: 800, fill: '#1E293B', angle: -30, textAnchor: 'end' }}
-                          />
-                          <YAxis 
-                            type="number" 
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fontSize: 10, fontWeight: 800, fill: '#1E293B' }}
-                          />
-                          <Tooltip 
-                            cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                            contentStyle={{ 
-                              borderRadius: '16px', 
-                              border: '1px solid #F1F5F9', 
-                              boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-                              fontSize: '11px',
-                              fontWeight: '700'
-                            }}
-                          />
-                          <Bar 
-                            dataKey="value" 
-                            fill="#3B82F6"
-                            radius={[4, 4, 0, 0]}
-                            onClick={(data) => handleGraphClick('typeOfIssue', data.name)}
-                          >
-                            <LabelList 
-                              dataKey="value" 
-                              position="top" 
-                              style={{ fontSize: '10px', fontWeight: '800', fill: '#1E293B' }} 
-                            />
-                            {tsIssueTypeData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={getChartColor(index + 2)} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
-                        <BarChart3 className="w-12 h-12 opacity-10" />
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">No Type of Issue Data</p>
-                      </div>
-                    )}
+                    <div className="w-full overflow-x-auto">
+                      {tsIssueTypeData.length > 0 ? (
+                        <div style={{ minWidth: Math.max(500, tsIssueTypeData.length * 80) }}>
+                          <ResponsiveContainer width="100%" height={260}>
+                            <BarChart 
+                              data={tsIssueTypeData} 
+                              margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis 
+                                dataKey="name" 
+                                type="category" 
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 10, fontWeight: 800, fill: '#1E293B', angle: -30, textAnchor: 'end' }}
+                              />
+                              <YAxis 
+                                type="number" 
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 10, fontWeight: 800, fill: '#1E293B' }}
+                              />
+                              <Tooltip 
+                                cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                                contentStyle={{ 
+                                  borderRadius: '16px', 
+                                  border: '1px solid #F1F5F9', 
+                                  boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                                  fontSize: '11px',
+                                  fontWeight: '700'
+                                }}
+                              />
+                              <Bar 
+                                dataKey="value" 
+                                fill="#3B82F6"
+                                radius={[4, 4, 0, 0]}
+                                barSize={48}
+                                onClick={(data) => handleGraphClick('typeOfIssue', data.name)}
+                              >
+                                <LabelList 
+                                  dataKey="value" 
+                                  position="top" 
+                                  style={{ fontSize: '10px', fontWeight: '800', fill: '#1E293B' }} 
+                                />
+                                {tsIssueTypeData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={getChartColor(index + 2)} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
+                          <BarChart3 className="w-12 h-12 opacity-10" />
+                          <p className="text-[10px] font-black uppercase tracking-widest opacity-40">No Type of Issue Data</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1371,48 +1376,52 @@ export default function App() {
                     <p className="text-xs text-slate-500">Share of tickets by seller customer type.</p>
                   </div>
                   <div className="h-[280px] w-full">
-                    {tsSellerCusttypeData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={tsSellerCusttypeData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={70}
-                            outerRadius={110}
-                            paddingAngle={5}
-                            dataKey="value"
-                            stroke="none"
-                            label={({ name, value }) => `${name}: ${value}`}
-                            onClick={(state) => handleGraphClick('sellerCusttype', String(state.name))}
-                          >
-                            {tsSellerCusttypeData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={getChartColor(index)} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            contentStyle={{ 
-                              borderRadius: '16px', 
-                              border: '1px solid #F1F5F9', 
-                              boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-                              fontSize: '11px',
-                              fontWeight: '700'
-                            }}
-                          />
-                          <Legend 
-                            verticalAlign="bottom" 
-                            align="center"
-                            iconType="circle"
-                            wrapperStyle={{ paddingTop: '20px', fontSize: '10px', fontWeight: '700' }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
-                        <BarChart3 className="w-12 h-12 opacity-10" />
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">No Seller Custtype Data</p>
-                      </div>
-                    )}
+                    <div className="w-full overflow-x-auto">
+                      {tsSellerCusttypeData.length > 0 ? (
+                        <div style={{ minWidth: Math.max(500, tsSellerCusttypeData.length * 120) }}>
+                          <ResponsiveContainer width="100%" height={260}>
+                            <PieChart>
+                              <Pie
+                                data={tsSellerCusttypeData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={70}
+                                outerRadius={110}
+                                paddingAngle={5}
+                                dataKey="value"
+                                stroke="none"
+                                label={({ name, value }) => `${name}: ${value}`}
+                                onClick={(state) => handleGraphClick('sellerCusttype', String(state.name))}
+                              >
+                                {tsSellerCusttypeData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={getChartColor(index)} />
+                                ))}
+                              </Pie>
+                              <Tooltip 
+                                contentStyle={{ 
+                                  borderRadius: '16px', 
+                                  border: '1px solid #F1F5F9', 
+                                  boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                                  fontSize: '11px',
+                                  fontWeight: '700'
+                                }}
+                              />
+                              <Legend 
+                                verticalAlign="bottom" 
+                                align="center"
+                                iconType="circle"
+                                wrapperStyle={{ paddingTop: '20px', fontSize: '10px', fontWeight: '700' }}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
+                          <BarChart3 className="w-12 h-12 opacity-10" />
+                          <p className="text-[10px] font-black uppercase tracking-widest opacity-40">No Seller Custtype Data</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1427,48 +1436,52 @@ export default function App() {
                     <p className="text-xs text-slate-500">How many tickets have PPP enabled vs disabled.</p>
                   </div>
                   <div className="h-[280px] w-full">
-                    {tsPppStatusData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={tsPppStatusData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={70}
-                            outerRadius={110}
-                            paddingAngle={5}
-                            dataKey="value"
-                            stroke="none"
-                            label={({ name, value }) => `${name}: ${value}`}
-                            onClick={(state) => handleGraphClick('pppStatus', String(state.name))}
-                          >
-                            {tsPppStatusData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={getChartColor(index)} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            contentStyle={{ 
-                              borderRadius: '16px', 
-                              border: '1px solid #F1F5F9', 
-                              boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-                              fontSize: '11px',
-                              fontWeight: '700'
-                            }}
-                          />
-                          <Legend 
-                            verticalAlign="bottom" 
-                            align="center"
-                            iconType="circle"
-                            wrapperStyle={{ paddingTop: '20px', fontSize: '10px', fontWeight: '700' }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
-                        <BarChart3 className="w-12 h-12 opacity-10" />
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">No PPP Status Data</p>
-                      </div>
-                    )}
+                    <div className="w-full overflow-x-auto">
+                      {tsPppStatusData.length > 0 ? (
+                        <div style={{ minWidth: Math.max(500, tsPppStatusData.length * 120) }}>
+                          <ResponsiveContainer width="100%" height={260}>
+                            <PieChart>
+                              <Pie
+                                data={tsPppStatusData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={70}
+                                outerRadius={110}
+                                paddingAngle={5}
+                                dataKey="value"
+                                stroke="none"
+                                label={({ name, value }) => `${name}: ${value}`}
+                                onClick={(state) => handleGraphClick('pppStatus', String(state.name))}
+                              >
+                                {tsPppStatusData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={getChartColor(index)} />
+                                ))}
+                              </Pie>
+                              <Tooltip 
+                                contentStyle={{ 
+                                  borderRadius: '16px', 
+                                  border: '1px solid #F1F5F9', 
+                                  boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                                  fontSize: '11px',
+                                  fontWeight: '700'
+                                }}
+                              />
+                              <Legend 
+                                verticalAlign="bottom" 
+                                align="center"
+                                iconType="circle"
+                                wrapperStyle={{ paddingTop: '20px', fontSize: '10px', fontWeight: '700' }}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
+                          <BarChart3 className="w-12 h-12 opacity-10" />
+                          <p className="text-[10px] font-black uppercase tracking-widest opacity-40">No PPP Status Data</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1481,56 +1494,60 @@ export default function App() {
                     <p className="text-xs text-slate-500">How many tickets are in each stage.</p>
                   </div>
                   <div className="h-[280px] w-full">
-                    {tsTicketStageData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart 
-                          data={tsTicketStageData} 
-                          layout="vertical"
-                          margin={{ top: 5, right: 40, left: 100, bottom: 5 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E2E8F0" />
-                          <XAxis type="number" hide />
-                          <YAxis 
-                            dataKey="name" 
-                            type="category" 
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fontSize: 10, fontWeight: 800, fill: '#1E293B' }}
-                            width={180}
-                          />
-                          <Tooltip 
-                            cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                            contentStyle={{ 
-                              borderRadius: '16px', 
-                              border: '1px solid #F1F5F9', 
-                              boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-                              fontSize: '11px',
-                              fontWeight: '700'
-                            }}
-                          />
-                          <Bar 
-                            dataKey="value" 
-                            radius={[0, 4, 4, 0]}
-                            barSize={28}
-                            onClick={(data) => handleGraphClick('ticketStage', data.name)}
-                          >
-                            <LabelList 
-                              dataKey="value" 
-                              position="right" 
-                              style={{ fontSize: '10px', fontWeight: '800', fill: '#1E293B' }} 
-                            />
-                            {tsTicketStageData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={getChartColor(index + 1)} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
-                        <BarChart3 className="w-12 h-12 opacity-10" />
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">No Ticket Stage Data</p>
-                      </div>
-                    )}
+                    <div className="w-full overflow-x-auto">
+                      {tsTicketStageData.length > 0 ? (
+                        <div style={{ minWidth: Math.max(500, tsTicketStageData.length * 100) }}>
+                          <ResponsiveContainer width="100%" height={260}>
+                            <BarChart 
+                              data={tsTicketStageData} 
+                              layout="vertical"
+                              margin={{ top: 5, right: 40, left: 100, bottom: 5 }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E2E8F0" />
+                              <XAxis type="number" hide />
+                              <YAxis 
+                                dataKey="name" 
+                                type="category" 
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 10, fontWeight: 800, fill: '#1E293B' }}
+                                width={180}
+                              />
+                              <Tooltip 
+                                cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                                contentStyle={{ 
+                                  borderRadius: '16px', 
+                                  border: '1px solid #F1F5F9', 
+                                  boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                                  fontSize: '11px',
+                                  fontWeight: '700'
+                                }}
+                              />
+                              <Bar 
+                                dataKey="value" 
+                                radius={[0, 4, 4, 0]}
+                                barSize={28}
+                                onClick={(data) => handleGraphClick('ticketStage', data.name)}
+                              >
+                                <LabelList 
+                                  dataKey="value" 
+                                  position="right" 
+                                  style={{ fontSize: '10px', fontWeight: '800', fill: '#1E293B' }}
+                                />
+                                {tsTicketStageData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={getChartColor(index + 1)} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
+                          <BarChart3 className="w-12 h-12 opacity-10" />
+                          <p className="text-[10px] font-black uppercase tracking-widest opacity-40">No Ticket Stage Data</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1544,56 +1561,62 @@ export default function App() {
                   <p className="text-xs text-slate-500">Most frequent closing comments (top 10).</p>
                 </div>
                 <div className="h-[280px] w-full">
-                  {tsClosingCommentData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart 
-                        data={tsClosingCommentData} 
-                        layout="vertical"
-                        margin={{ top: 5, right: 40, left: 100, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E2E8F0" />
-                        <XAxis type="number" hide />
-                        <YAxis 
-                          dataKey="name" 
-                          type="category" 
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fontSize: 10, fontWeight: 800, fill: '#1E293B' }}
-                          width={180}
-                        />
-                        <Tooltip 
-                          cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                          contentStyle={{ 
-                            borderRadius: '16px', 
-                            border: '1px solid #F1F5F9', 
-                            boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-                            fontSize: '11px',
-                            fontWeight: '700'
-                          }}
-                        />
-                        <Bar 
-                          dataKey="value" 
-                          radius={[0, 4, 4, 0]}
-                          barSize={28}
-                          onClick={(data) => handleGraphClick('closingComment', String(data.name))}
-                        >
-                          <LabelList 
-                            dataKey="value" 
-                            position="right" 
-                            style={{ fontSize: '10px', fontWeight: '800', fill: '#1E293B' }} 
-                          />
-                          {tsClosingCommentData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={getChartColor(index + 3)} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
-                      <BarChart3 className="w-12 h-12 opacity-10" />
-                      <p className="text-[10px] font-black uppercase tracking-widest opacity-40">No Closing Comment Data</p>
-                    </div>
-                  )}
+                  <div className="w-full overflow-x-auto">
+                    {tsClosingCommentData.length > 0 ? (
+                      <div style={{ minWidth: Math.max(600, tsClosingCommentData.length * 220) }}>
+                        <ResponsiveContainer width="100%" height={340}>
+                          <BarChart 
+                            data={tsClosingCommentData} 
+                            layout="vertical"
+                            margin={{ top: 10, right: 40, left: 220, bottom: 10 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E2E8F0" />
+                            <XAxis type="number" hide />
+                            <YAxis 
+                              dataKey="name" 
+                              type="category" 
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{ fontSize: 12, fontWeight: 800, fill: '#1E293B', wordBreak: 'break-all' }}
+                              width={220}
+                            />
+                            <Tooltip 
+                              cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                              contentStyle={{ 
+                                borderRadius: '16px', 
+                                border: '1px solid #F1F5F9', 
+                                boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                maxWidth: '400px',
+                                whiteSpace: 'pre-line',
+                              }}
+                            />
+                            <Bar 
+                              dataKey="value" 
+                              radius={[0, 4, 4, 0]}
+                              barSize={32}
+                              onClick={(data) => handleGraphClick('closingComment', String(data.name))}
+                            >
+                              <LabelList 
+                                dataKey="value" 
+                                position="right" 
+                                style={{ fontSize: '12px', fontWeight: '800', fill: '#1E293B' }} 
+                              />
+                              {tsClosingCommentData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={getChartColor(index + 3)} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
+                        <BarChart3 className="w-12 h-12 opacity-10" />
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">No Closing Comment Data</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
