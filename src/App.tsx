@@ -73,6 +73,10 @@ export default function App() {
   const [selectedTsClosedStage, setSelectedTsClosedStage] = useState<string>('all');
   const [tsClosedSearchTerm, setTsClosedSearchTerm] = useState<string>('');
 
+  // Overall Tab Filter States
+  const [overallStartDate, setOverallStartDate] = useState<string>('');
+  const [overallEndDate, setOverallEndDate] = useState<string>('');
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
@@ -259,13 +263,79 @@ export default function App() {
     });
   }, [tsData, tsStartDate, tsEndDate, selectedTsCustType, selectedTsTypeOfIssue, selectedTsPppStatus, selectedTsStage, tsSearchTerm]);
 
+  // Overall Tab Filtered Data
+  const filteredOverallVisitData = useMemo(() => {
+    return data.filter(item => {
+      if (overallStartDate || overallEndDate) {
+        const itemDate = parseSheetDate(item.date);
+        if (!itemDate) return false;
+
+        const start = overallStartDate ? startOfDay(new Date(overallStartDate)) : null;
+        const end = overallEndDate ? endOfDay(new Date(overallEndDate)) : null;
+
+        if (start && end) {
+          return isWithinInterval(itemDate, { start, end });
+        } else if (start) {
+          return itemDate >= start;
+        } else if (end) {
+          return itemDate <= end;
+        }
+      }
+      return true;
+    });
+  }, [data, overallStartDate, overallEndDate]);
+
+  const filteredOverallTsData = useMemo(() => {
+    return tsData.filter(item => {
+      if (overallStartDate || overallEndDate) {
+        const itemDate = parseSheetDate(item.issueDate);
+        if (!itemDate) return false;
+
+        const start = overallStartDate ? startOfDay(new Date(overallStartDate)) : null;
+        const end = overallEndDate ? endOfDay(new Date(overallEndDate)) : null;
+
+        if (start && end) {
+          return isWithinInterval(itemDate, { start, end });
+        } else if (start) {
+          return itemDate >= start;
+        } else if (end) {
+          return itemDate <= end;
+        }
+      }
+      return true;
+    });
+  }, [tsData, overallStartDate, overallEndDate]);
+
+  const filteredOverallTsClosedData = useMemo(() => {
+    return tsClosedData.filter(item => {
+      if (overallStartDate || overallEndDate) {
+        const itemDate = parseSheetDate(item.issueDate);
+        if (!itemDate) return false;
+
+        const start = overallStartDate ? startOfDay(new Date(overallStartDate)) : null;
+        const end = overallEndDate ? endOfDay(new Date(overallEndDate)) : null;
+
+        if (start && end) {
+          return isWithinInterval(itemDate, { start, end });
+        } else if (start) {
+          return itemDate >= start;
+        } else if (end) {
+          return itemDate <= end;
+        }
+      }
+      return true;
+    });
+  }, [tsClosedData, overallStartDate, overallEndDate]);
+
   const stats = {
     total: filteredData.length,
     uniqueGlids: new Set(filteredData.map(d => d.buyerGlid)).size,
     sources: new Set(filteredData.map(d => d.source)).size,
-    // Help Page Analysis (Strictly from help.im source)
-    identified: filteredData.filter(d => d.source.toLowerCase() === 'help.im' && /^\d+$/.test(d.buyerGlid)).length,
-    unidentified: filteredData.filter(d => d.source.toLowerCase() === 'help.im' && d.buyerGlid.toLowerCase().includes('(not set)')).length,
+    // Total Visits - Sum of Visit Count column
+    totalVisits: filteredData.reduce((sum, d) => sum + (d.visitCount || 0), 0),
+    // Help Page Analysis (Strictly from help.im source) - Unique Buyer GLIDs
+    identified: new Set(filteredData.filter(d => d.source.toLowerCase() === 'help.im' && /^\d+$/.test(d.buyerGlid)).map(d => d.buyerGlid)).size,
+    unidentified: new Set(filteredData.filter(d => d.source.toLowerCase() === 'help.im' && d.buyerGlid.toLowerCase().includes('(not set)')).map(d => d.buyerGlid)).size,
     // VOC Data Analysis
     vocCallCenter: filteredData.filter(d => d.source === '9696').length,
     vocMails: filteredData.filter(d => d.source.toLowerCase().includes('mail')).length,
@@ -429,7 +499,7 @@ export default function App() {
   }, [tsClosedData]);
 
   const uniqueTsClosedPppStatuses = useMemo(() => {
-    const statuses = new Set(tsClosedData.map(item => (item.pppStatus || '').trim()).filter(Boolean));
+    const statuses = new Set(tsClosedData.map(item => (item.pppStatus || '').trim()).filter(status => status && status !== 'Unknown'));
     return Array.from(statuses).sort();
   }, [tsClosedData]);
 
@@ -520,7 +590,10 @@ export default function App() {
       const key = (item.typeOfIssue || '').trim() || 'Unknown';
       counts[key] = (counts[key] || 0) + 1;
     });
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
   }, [filteredTsClosedData]);
 
   const tsClosedSellerCusttypeData = useMemo(() => {
@@ -535,8 +608,10 @@ export default function App() {
   const tsClosedPppStatusData = useMemo(() => {
     const counts: Record<string, number> = {};
     filteredTsClosedData.forEach(item => {
-      const key = (item.pppStatus || '').trim() || 'Unknown';
-      counts[key] = (counts[key] || 0) + 1;
+      const key = (item.pppStatus || '').trim();
+      if (key && key !== 'Unknown') {
+        counts[key] = (counts[key] || 0) + 1;
+      }
     });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [filteredTsClosedData]);
@@ -997,23 +1072,16 @@ export default function App() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                       <div className="w-2 h-4 bg-blue-600 rounded-full" />
-                      Total Visits - Help Page
+                      Unique Buyers - Help Page
                     </h3>
                     <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-black border border-blue-100 shadow-sm">
-                      Total: {loading ? '...' : (stats.identified + stats.unidentified)}
+                      Total: {loading ? '...' : stats.identified}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Identified Mode</p>
-                      <p className="text-2xl font-black text-slate-800">{loading ? '...' : stats.identified}</p>
-                      <p className="text-[9px] text-slate-400 mt-1">Numeric GLIDs</p>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Un-Identified Mode</p>
-                      <p className="text-2xl font-black text-slate-800">{loading ? '...' : stats.unidentified}</p>
-                      <p className="text-[9px] text-slate-400 mt-1">(not set) GLIDs</p>
-                    </div>
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Identified Buyers</p>
+                    <p className="text-2xl font-black text-slate-800">{loading ? '...' : stats.identified}</p>
+                    <p className="text-[9px] text-slate-400 mt-1">Unique Numeric GLIDs</p>
                   </div>
                 </div>
 
@@ -1088,6 +1156,24 @@ export default function App() {
                     {Object.keys(stats.ticketStageCounts).length === 0 && (
                       <div className="col-span-2 py-4 text-center text-[10px] font-bold text-slate-400 uppercase">No Stage Data</div>
                     )}
+                  </div>
+                </div>
+
+                {/* Total Visits Analysis */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                      <div className="w-2 h-4 bg-purple-600 rounded-full" />
+                      Total Visits
+                    </h3>
+                    <span className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-black border border-purple-100 shadow-sm">
+                      Total: {loading ? '...' : stats.totalVisits}
+                    </span>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Visit Count</p>
+                    <p className="text-2xl font-black text-slate-800">{loading ? '...' : stats.totalVisits}</p>
+                    <p className="text-[9px] text-slate-400 mt-1">Sum of Visit Count Column</p>
                   </div>
                 </div>
               </div>
@@ -2205,6 +2291,13 @@ export default function App() {
                       <tr className="bg-slate-50/50 sticky top-0">
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Ticket ID</th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Buyer GLID</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Buyer Name</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Buyer City</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Seller GLID</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Company Name</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Cust-type</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">City</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Refund Status</th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Dispute Amount</th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Case Study Thread</th>
                       </tr>
@@ -2224,6 +2317,27 @@ export default function App() {
                               {row.buyerGlid || '—'}
                             </td>
                             <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">
+                              {row.buyerName || '—'}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">
+                              {row.buyerCity || '—'}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">
+                              {row.sellerGlid || '—'}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">
+                              {row.companyName || '—'}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">
+                              {row.custType || '—'}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">
+                              {row.city || '—'}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">
+                              {row.refundStatus || '—'}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">
                               {row.disputeAmount || '—'}
                             </td>
                             <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800 line-clamp-2">
@@ -2233,7 +2347,7 @@ export default function App() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={4} className="px-8 py-24 text-center">
+                          <td colSpan={11} className="px-8 py-24 text-center">
                             <div className="flex flex-col items-center gap-2 opacity-30">
                               <TableIcon className="w-12 h-12" />
                               <p className="text-sm font-bold uppercase tracking-widest text-slate-400">No Entries Found</p>
@@ -2246,24 +2360,160 @@ export default function App() {
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="p-12 flex-1 flex flex-col items-center justify-center text-center gap-6">
-              <div className="bg-blue-50 p-6 rounded-3xl shadow-inner">
-                <LayoutDashboard className="w-16 h-16 text-blue-500 opacity-50" />
+          ) : activeTab === 'overall' ? (
+            <div className="p-8 flex-1 flex flex-col gap-8">
+              {/* Date Filters */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Calendar className="w-4 h-4 text-slate-400" />
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Date Range Filter</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 block mb-2">Start Date</label>
+                    <input
+                      type="date"
+                      value={overallStartDate}
+                      onChange={(e) => setOverallStartDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 block mb-2">End Date</label>
+                    <input
+                      type="date"
+                      value={overallEndDate}
+                      onChange={(e) => setOverallEndDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="max-w-md">
-                <h3 className="text-2xl font-black text-slate-800 mb-3">Overall Analysis</h3>
-                <p className="text-slate-500 leading-relaxed">
-                  This section will contain overall performance metrics and high-level trends. 
-                  We are currently preparing the data for this view.
-                </p>
-              </div>
-              <div className="flex items-center gap-3 px-6 py-3 bg-slate-100 rounded-2xl border border-slate-200">
-                <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Coming Soon</span>
-              </div>
+
+              {/* Awareness & Reach Section */}
+              {(() => {
+                const identifiedBuyers = new Set(filteredOverallVisitData.filter(d => d.source.toLowerCase() === 'help.im' && /^\d+$/.test(d.buyerGlid)).map(d => d.buyerGlid)).size;
+                const vocCallCenter = filteredOverallVisitData.filter(d => d.source === '9696').length;
+                const vocMails = filteredOverallVisitData.filter(d => d.source.toLowerCase().includes('mail')).length;
+                const vocSocial = filteredOverallVisitData.filter(d => 
+                  d.source.toLowerCase().includes('social') || 
+                  d.source.toLowerCase().includes('grievance') || 
+                  d.source.toLowerCase().includes('consumer help') || 
+                  d.source.toLowerCase().includes('appstore')
+                ).length;
+                const totalVOC = vocCallCenter + vocMails + vocSocial;
+                const totalPPPReach = identifiedBuyers + totalVOC;
+
+                return (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                          <div className="w-2 h-4 bg-blue-600 rounded-full" />
+                          Total PPP Reach
+                        </h3>
+                        <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-black border border-blue-100 shadow-sm">
+                          Total: {totalPPPReach}
+                        </span>
+                      </div>
+                      <p className="text-3xl font-black text-blue-600">{totalPPPReach}</p>
+                      <p className="text-[9px] text-slate-400 mt-2">Identified Buyers + VOC Users</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                          <div className="w-2 h-4 bg-emerald-600 rounded-full" />
+                          Unique Users - PPP Help Page
+                        </h3>
+                        <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-black border border-emerald-100 shadow-sm">
+                          Total: {identifiedBuyers}
+                        </span>
+                      </div>
+                      <p className="text-3xl font-black text-emerald-600">{identifiedBuyers}</p>
+                      <p className="text-[9px] text-slate-400 mt-2">Unique Identified Buyers</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                          <div className="w-2 h-4 bg-purple-600 rounded-full" />
+                          VOC Assisted Users
+                        </h3>
+                        <span className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-black border border-purple-100 shadow-sm">
+                          Total: {totalVOC}
+                        </span>
+                      </div>
+                      <p className="text-3xl font-black text-purple-600">{totalVOC}</p>
+                      <p className="text-[9px] text-slate-400 mt-2">Total VOC Data Count</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* PPP Related Dispute Section */}
+              {(() => {
+                const identifiedBuyers = new Set(filteredOverallVisitData.filter(d => d.source.toLowerCase() === 'help.im' && /^\d+$/.test(d.buyerGlid)).map(d => d.buyerGlid)).size;
+                const vocCallCenter = filteredOverallVisitData.filter(d => d.source === '9696').length;
+                const vocMails = filteredOverallVisitData.filter(d => d.source.toLowerCase().includes('mail')).length;
+                const vocSocial = filteredOverallVisitData.filter(d => 
+                  d.source.toLowerCase().includes('social') || 
+                  d.source.toLowerCase().includes('grievance') || 
+                  d.source.toLowerCase().includes('consumer help') || 
+                  d.source.toLowerCase().includes('appstore')
+                ).length;
+                const totalVOC = vocCallCenter + vocMails + vocSocial;
+                const denominator = identifiedBuyers + totalVOC;
+
+                // Count disputes
+                const totalDisputes = pppInScopeData.length;
+
+                // Count resolved/closed tickets - looking for relevant ticket stages
+                const resolvedCount = filteredOverallTsClosedData.filter(item => {
+                  const stage = (item.ticketStage || '').toLowerCase();
+                  return stage.includes('resolved') || 
+                         stage.includes('closed') || 
+                         stage.includes('wip-mutual') ||
+                         stage.includes('closed-routine') ||
+                         stage.includes('invalid');
+                }).length;
+
+                const disputeRate = denominator > 0 ? ((resolvedCount / denominator) * 100).toFixed(2) : 0;
+
+                return (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                          <div className="w-2 h-4 bg-red-600 rounded-full" />
+                          Disputes Raised
+                        </h3>
+                        <span className="px-3 py-1 bg-red-50 text-red-700 rounded-full text-xs font-black border border-red-100 shadow-sm">
+                          Total: {totalDisputes}
+                        </span>
+                      </div>
+                      <p className="text-3xl font-black text-red-600">{totalDisputes}</p>
+                      <p className="text-[9px] text-slate-400 mt-2">PPP In Scope Records</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                          <div className="w-2 h-4 bg-amber-600 rounded-full" />
+                          Dispute Resolution Rate
+                        </h3>
+                        <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-black border border-amber-100 shadow-sm">
+                          Rate: {disputeRate}%
+                        </span>
+                      </div>
+                      <p className="text-3xl font-black text-amber-600">{disputeRate}%</p>
+                      <p className="text-[9px] text-slate-400 mt-2">(Resolved + Closed Disputes) / Total Reach</p>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
-          )}
+          ) : null}
         </div>
         
         {/* Footer Info */}
