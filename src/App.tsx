@@ -2405,48 +2405,36 @@ export default function App() {
                 const totalPPPReach = identifiedBuyers + totalVOC;
 
                 return (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                          <div className="w-2 h-4 bg-blue-600 rounded-full" />
-                          Total PPP Reach
-                        </h3>
-                        <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-black border border-blue-100 shadow-sm">
-                          Total: {totalPPPReach}
-                        </span>
-                      </div>
-                      <p className="text-3xl font-black text-blue-600">{totalPPPReach}</p>
-                      <p className="text-[9px] text-slate-400 mt-2">Identified Buyers + VOC Users</p>
-                    </div>
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm max-w-md">
+                    <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-3">PPP Reach & Users</h2>
+                    <ul className="space-y-2">
+                      <li className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-100">
+                        <div className="w-1.5 h-2.5 bg-blue-600 rounded-full flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-[11px] font-black text-slate-700 uppercase tracking-wide">Total PPP Reach</p>
+                          <p className="text-xl font-black text-blue-600">{totalPPPReach}</p>
+                          <p className="text-[7px] text-slate-500 mt-0.5">Identified Buyers + VOC Users</p>
+                        </div>
+                      </li>
 
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                          <div className="w-2 h-4 bg-emerald-600 rounded-full" />
-                          Unique Users - PPP Help Page
-                        </h3>
-                        <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-black border border-emerald-100 shadow-sm">
-                          Total: {identifiedBuyers}
-                        </span>
-                      </div>
-                      <p className="text-3xl font-black text-emerald-600">{identifiedBuyers}</p>
-                      <p className="text-[9px] text-slate-400 mt-2">Unique Identified Buyers</p>
-                    </div>
+                      <li className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-100">
+                        <div className="w-1.5 h-2.5 bg-emerald-600 rounded-full flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-[11px] font-black text-slate-700 uppercase tracking-wide">Unique Users - PPP Help Page</p>
+                          <p className="text-xl font-black text-emerald-600">{identifiedBuyers}</p>
+                          <p className="text-[7px] text-slate-500 mt-0.5">Unique Identified Buyers</p>
+                        </div>
+                      </li>
 
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                          <div className="w-2 h-4 bg-purple-600 rounded-full" />
-                          VOC Assisted Users
-                        </h3>
-                        <span className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-black border border-purple-100 shadow-sm">
-                          Total: {totalVOC}
-                        </span>
-                      </div>
-                      <p className="text-3xl font-black text-purple-600">{totalVOC}</p>
-                      <p className="text-[9px] text-slate-400 mt-2">Total VOC Data Count</p>
-                    </div>
+                      <li className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg border border-purple-100">
+                        <div className="w-1.5 h-2.5 bg-purple-600 rounded-full flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-[11px] font-black text-slate-700 uppercase tracking-wide">VOC Assisted Users</p>
+                          <p className="text-xl font-black text-purple-600">{totalVOC}</p>
+                          <p className="text-[7px] text-slate-500 mt-0.5">Total VOC Data Count</p>
+                        </div>
+                      </li>
+                    </ul>
                   </div>
                 );
               })()}
