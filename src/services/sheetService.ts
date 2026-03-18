@@ -8,6 +8,7 @@ export interface SourceOfVisitData {
   pppApplicable: string;
   ticketId: string;
   ticketStage: string;
+  visitCount: number;
 }
 
 export interface TSDataBifurcationRow {
@@ -41,6 +42,13 @@ export interface TSClosedTicketsRow {
 export interface PPPInScopeRow {
   ticketId: string;
   buyerGlid: string;
+  buyerName: string;
+  buyerCity: string;
+  sellerGlid: string;
+  companyName: string;
+  custType: string;
+  city: string;
+  refundStatus: string;
   disputeAmount: string;
   caseStudyThread: string;
   [key: string]: string;
@@ -73,6 +81,26 @@ export async function fetchSourceOfVisitData(): Promise<SourceOfVisitData[]> {
             const ticketId = (row['Ticket ID'] || '').trim();
             const ticketStage = (row['Ticket Stage'] || '').trim();
             
+            // Try multiple possible column names for Visit Count
+            let visitCountRaw = '';
+            const possibleVisitCountKeys = ['Visit Count', 'visit count', 'Visit count', 'visit Count', 'Visits', 'visits', 'Count', 'count'];
+            for (const key of possibleVisitCountKeys) {
+              if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                visitCountRaw = (row[key] || '').toString().trim();
+                break;
+              }
+            }
+            
+            // More robust parsing of visit count
+            let visitCount = 0;
+            if (visitCountRaw) {
+              const parsed = parseFloat(visitCountRaw);
+              if (!isNaN(parsed)) {
+                visitCount = parsed;
+              }
+            }
+            console.log('Final visitCount:', visitCount);
+            
             return {
               date: date,
               buyerGlid: rawGlid,
@@ -81,6 +109,7 @@ export async function fetchSourceOfVisitData(): Promise<SourceOfVisitData[]> {
               pppApplicable: pppApplicable,
               ticketId: ticketId,
               ticketStage: ticketStage,
+              visitCount: visitCount,
             };
           });
           resolve(data);
@@ -152,6 +181,13 @@ export async function fetchPPPInScopeData(): Promise<PPPInScopeRow[]> {
             const cleanRow: PPPInScopeRow = {
               ticketId: (row['Ticket ID'] || '').trim(),
               buyerGlid: (row['Buyer GLID'] || '').trim(),
+              buyerName: (row['Buyer Name'] || '').trim(),
+              buyerCity: (row['Buyer City'] || '').trim(),
+              sellerGlid: (row['Seller GLID'] || '').trim(),
+              companyName: (row['Company Name'] || '').trim(),
+              custType: (row['Cust-type'] || '').trim(),
+              city: (row['City'] || '').trim(),
+              refundStatus: (row['Refund Status'] || '').trim(),
               disputeAmount: (row['Dispute Amount'] || '').trim(),
               caseStudyThread: (row['Case Study Thread'] || '').trim(),
             };
