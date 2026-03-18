@@ -29,7 +29,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'visit-data' | 'ts-bifurcation' | 'ts-closed-tickets' | 'ppp-in-scope' | 'overall'>('ts-bifurcation');
+  const [activeTab, setActiveTab] = useState<'visit-data' | 'ts-bifurcation' | 'ts-closed-tickets' | 'ppp-in-scope' | 'overall'>('overall');
   const [data, setData] = useState<SourceOfVisitData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -748,6 +748,21 @@ export default function App() {
           {/* Tabs in Header */}
           <div className="flex items-center gap-8 h-12">
             <button
+              onClick={() => setActiveTab('overall')}
+              className={cn(
+                "h-full px-1 text-sm font-black transition-all flex items-center gap-2 relative",
+                activeTab === 'overall'
+                  ? "text-emerald-600"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              <BarChart3 className="w-4 h-4" />
+              Overall
+              {activeTab === 'overall' && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-600 rounded-full" />
+              )}
+            </button>
+            <button
               onClick={() => setActiveTab('ts-bifurcation')}
               className={cn(
                 "h-full px-1 text-sm font-black transition-all flex items-center gap-2 relative",
@@ -804,21 +819,6 @@ export default function App() {
               <LayoutDashboard className="w-4 h-4" />
               Visit Data
               {activeTab === 'visit-data' && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-600 rounded-full" />
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('overall')}
-              className={cn(
-                "h-full px-1 text-sm font-black transition-all flex items-center gap-2 relative",
-                activeTab === 'overall'
-                  ? "text-emerald-600"
-                  : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              <BarChart3 className="w-4 h-4" />
-              Overall
-              {activeTab === 'overall' && (
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-600 rounded-full" />
               )}
             </button>
