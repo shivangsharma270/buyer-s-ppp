@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { LayoutDashboard, Table as TableIcon, Loader2, AlertCircle, RefreshCw, Calendar, Filter, X, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Table as TableIcon, Loader2, AlertCircle, RefreshCw, Calendar, Filter, X, BarChart3, ArrowRight, ChevronRight, TrendingDown, Users, Ticket, CheckCircle2 } from 'lucide-react';
 import { fetchSourceOfVisitData, fetchTSDataBifurcation, fetchPPPInScopeData, fetchTSClosedTicketsData, SourceOfVisitData, TSDataBifurcationRow, PPPInScopeRow, TSClosedTicketsRow } from './services/sheetService';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -357,6 +357,82 @@ export default function App() {
       return acc;
     }, {} as Record<string, number>)
   };
+
+  const overallMetrics = useMemo(() => {
+    // 1. Total PPP Reach
+    const identifiedBuyers = new Set(filteredOverallVisitData.filter(d => d.source.toLowerCase() === 'help.im' && /^\d+$/.test(d.buyerGlid)).map(d => d.buyerGlid)).size;
+    const vocCallCenter = filteredOverallVisitData.filter(d => d.source === '9696').length;
+    const vocMails = filteredOverallVisitData.filter(d => d.source.toLowerCase().includes('mail')).length;
+    const vocSocial = filteredOverallVisitData.filter(d => 
+      d.source.toLowerCase().includes('social') || 
+      d.source.toLowerCase().includes('grievance') || 
+      d.source.toLowerCase().includes('consumer help') || 
+      d.source.toLowerCase().includes('appstore')
+    ).length;
+    const totalVOC = vocCallCenter + vocMails + vocSocial;
+    const totalPPPReach = identifiedBuyers + totalVOC;
+
+    // 2. Dispute Raised
+    const disputeRaised = pppInScopeData.length;
+
+    // 3. Total PPP Eligible
+    const totalPPPEligible = filteredOverallTsData.filter(d => (d.pppStatus || '').toLowerCase() === 'yes').length;
+
+    // 4. Total TS Ticket Issued
+    const totalTsTicketIssued = filteredOverallTsData.length;
+
+    // 5. Total TS Ticket Resolved
+    const totalTsTicketResolved = filteredOverallTsClosedData.length;
+
+    // --- Funnel Calculations ---
+    
+    // Unresolved Tickets
+    const closedTicketIds = new Set(filteredOverallTsClosedData.map(d => d.ticketId));
+    const unresolvedTickets = filteredOverallTsData.filter(d => !closedTicketIds.has(d.id));
+    const totalUnresolved = unresolvedTickets.length;
+
+    // Unresolved Advance Paid
+    const unresolvedAdvancePaid = unresolvedTickets.filter(d => 
+      (d.typeOfIssue || '').toLowerCase().includes('advance paid')
+    ).length;
+
+    // PPP Cases (subset of unresolved advance paid)
+    const pppCases = unresolvedTickets.filter(d => 
+      (d.typeOfIssue || '').toLowerCase().includes('advance paid') && 
+      (d.pppStatus || '').toLowerCase() === 'yes'
+    ).length;
+
+    // PPP In Scope (subset of advance paid)
+    const pppInScopeCount = pppInScopeData.length;
+
+    // PPP Eligible Amount (Sum of disputeAmount in pppInScopeData)
+    const pppEligibleAmount = pppInScopeData.reduce((sum, d) => {
+      const val = String(d.disputeAmount || '0').replace(/[^0-9.]/g, '');
+      return sum + (parseFloat(val) || 0);
+    }, 0);
+
+    // Refund Done Status
+    const refundDoneCount = pppInScopeData.filter(d => 
+      (d.refundStatus || '').toLowerCase().includes('done') || 
+      (d.refundStatus || '').toLowerCase().includes('refunded')
+    ).length;
+
+    return {
+      totalPPPReach,
+      identifiedBuyers,
+      totalVOC,
+      disputeRaised,
+      totalPPPEligible,
+      totalTsTicketIssued,
+      totalTsTicketResolved,
+      totalUnresolved,
+      unresolvedAdvancePaid,
+      pppCases,
+      pppInScopeCount,
+      pppEligibleAmount,
+      refundDoneCount
+    };
+  }, [filteredOverallVisitData, pppInScopeData, filteredOverallTsData, filteredOverallTsClosedData]);
 
   const chartData = useMemo(() => {
     const dateGroups: Record<string, Record<string, number>> = {};
@@ -1528,6 +1604,68 @@ export default function App() {
                   </table>
                 </div>
               </div>
+
+              {/* Visit Data Table */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                      <div className="w-1 h-6 bg-blue-500 rounded-full" />
+                      Visit Data Records
+                    </h3>
+                    <p className="text-xs text-slate-500">Total: {loading ? '...' : filteredData.length} records</p>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-auto max-h-[600px]">
+                  <table className="w-full text-left border-collapse table-auto">
+                    <thead>
+                      <tr className="bg-slate-50/50 sticky top-0">
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Date</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Buyer GLID</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Source</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Type of Issue</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">PPP Applicable</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Ticket ID</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Ticket Stage</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-100">Visit Count</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredData.length > 0 ? (
+                        filteredData.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-blue-50/30 transition-all group">
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">{row.date || '—'}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">{row.buyerGlid || '—'}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">{row.source || '—'}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">{row.typeOfIssue || '—'}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border",
+                                row.pppApplicable.toLowerCase() === 'yes' ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-rose-50 text-rose-700 border-rose-100"
+                              )}>
+                                {row.pppApplicable || '—'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">{row.ticketId || '—'}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">{row.ticketStage || '—'}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-slate-600 border-r border-slate-100 group-hover:text-slate-800">{row.visitCount || 0}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={8} className="px-8 py-24 text-center">
+                            <div className="flex flex-col items-center gap-2 opacity-30">
+                              <TableIcon className="w-12 h-12" />
+                              <p className="text-sm font-bold uppercase tracking-widest text-slate-400">No Entries Found</p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           ) : activeTab === 'ts-bifurcation' ? (
             <div className="p-8 flex-1 flex flex-col gap-8">
@@ -2390,116 +2528,189 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Awareness & Reach Section */}
-              {(() => {
-                const identifiedBuyers = new Set(filteredOverallVisitData.filter(d => d.source.toLowerCase() === 'help.im' && /^\d+$/.test(d.buyerGlid)).map(d => d.buyerGlid)).size;
-                const vocCallCenter = filteredOverallVisitData.filter(d => d.source === '9696').length;
-                const vocMails = filteredOverallVisitData.filter(d => d.source.toLowerCase().includes('mail')).length;
-                const vocSocial = filteredOverallVisitData.filter(d => 
-                  d.source.toLowerCase().includes('social') || 
-                  d.source.toLowerCase().includes('grievance') || 
-                  d.source.toLowerCase().includes('consumer help') || 
-                  d.source.toLowerCase().includes('appstore')
-                ).length;
-                const totalVOC = vocCallCenter + vocMails + vocSocial;
-                const totalPPPReach = identifiedBuyers + totalVOC;
-
-                return (
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm max-w-md">
-                    <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-3">PPP Reach & Users</h2>
-                    <ul className="space-y-2">
-                      <li className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-100">
-                        <div className="w-1.5 h-2.5 bg-blue-600 rounded-full flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-[11px] font-black text-slate-700 uppercase tracking-wide">Total PPP Reach</p>
-                          <p className="text-xl font-black text-blue-600">{totalPPPReach}</p>
-                          <p className="text-[7px] text-slate-500 mt-0.5">Identified Buyers + VOC Users</p>
-                        </div>
-                      </li>
-
-                      <li className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-100">
-                        <div className="w-1.5 h-2.5 bg-emerald-600 rounded-full flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-[11px] font-black text-slate-700 uppercase tracking-wide">Unique Users - PPP Help Page</p>
-                          <p className="text-xl font-black text-emerald-600">{identifiedBuyers}</p>
-                          <p className="text-[7px] text-slate-500 mt-0.5">Unique Identified Buyers</p>
-                        </div>
-                      </li>
-
-                      <li className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg border border-purple-100">
-                        <div className="w-1.5 h-2.5 bg-purple-600 rounded-full flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-[11px] font-black text-slate-700 uppercase tracking-wide">VOC Assisted Users</p>
-                          <p className="text-xl font-black text-purple-600">{totalVOC}</p>
-                          <p className="text-[7px] text-slate-500 mt-0.5">Total VOC Data Count</p>
-                        </div>
-                      </li>
-                    </ul>
+              {/* Key Metrics Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                {/* Total PPP Reach */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-4 bg-blue-600 rounded-full" />
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total PPP Reach</h3>
                   </div>
-                );
-              })()}
+                  <p className="text-3xl font-black text-blue-600">{overallMetrics.totalPPPReach}</p>
+                  <p className="text-[9px] text-slate-400">Unique Identified Buyers + VOC Users</p>
+                </div>
 
-              {/* PPP Related Dispute Section */}
-              {(() => {
-                const identifiedBuyers = new Set(filteredOverallVisitData.filter(d => d.source.toLowerCase() === 'help.im' && /^\d+$/.test(d.buyerGlid)).map(d => d.buyerGlid)).size;
-                const vocCallCenter = filteredOverallVisitData.filter(d => d.source === '9696').length;
-                const vocMails = filteredOverallVisitData.filter(d => d.source.toLowerCase().includes('mail')).length;
-                const vocSocial = filteredOverallVisitData.filter(d => 
-                  d.source.toLowerCase().includes('social') || 
-                  d.source.toLowerCase().includes('grievance') || 
-                  d.source.toLowerCase().includes('consumer help') || 
-                  d.source.toLowerCase().includes('appstore')
-                ).length;
-                const totalVOC = vocCallCenter + vocMails + vocSocial;
-                const denominator = identifiedBuyers + totalVOC;
+                {/* Dispute Raised */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-4 bg-red-600 rounded-full" />
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dispute Raised</h3>
+                  </div>
+                  <p className="text-3xl font-black text-red-600">{overallMetrics.disputeRaised}</p>
+                  <p className="text-[9px] text-slate-400">Total PPP In Scope Records</p>
+                </div>
 
-                // Count disputes
-                const totalDisputes = pppInScopeData.length;
+                {/* Total PPP Eligible */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-4 bg-emerald-600 rounded-full" />
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total PPP Eligible</h3>
+                  </div>
+                  <p className="text-3xl font-black text-emerald-600">{overallMetrics.totalPPPEligible}</p>
+                  <p className="text-[9px] text-slate-400">Tickets with PPP Status 'Yes'</p>
+                </div>
 
-                // Count resolved/closed tickets - looking for relevant ticket stages
-                const resolvedCount = filteredOverallTsClosedData.filter(item => {
-                  const stage = (item.ticketStage || '').toLowerCase();
-                  return stage.includes('resolved') || 
-                         stage.includes('closed') || 
-                         stage.includes('wip-mutual') ||
-                         stage.includes('closed-routine') ||
-                         stage.includes('invalid');
-                }).length;
+                {/* Total TS Ticket Issued */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-4 bg-amber-600 rounded-full" />
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total TS Ticket Issued</h3>
+                  </div>
+                  <p className="text-3xl font-black text-amber-600">{overallMetrics.totalTsTicketIssued}</p>
+                  <p className="text-[9px] text-slate-400">Total TS Data Bifurcation Records</p>
+                </div>
 
-                const disputeRate = denominator > 0 ? ((resolvedCount / denominator) * 100).toFixed(2) : 0;
+                {/* Total TS Ticket Resolved */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-4 bg-purple-600 rounded-full" />
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total TS Ticket Resolved</h3>
+                  </div>
+                  <p className="text-3xl font-black text-purple-600">{overallMetrics.totalTsTicketResolved}</p>
+                  <p className="text-[9px] text-slate-400">Total TS Closed Tickets Records</p>
+                </div>
+              </div>
 
-                return (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                          <div className="w-2 h-4 bg-red-600 rounded-full" />
-                          Disputes Raised
-                        </h3>
-                        <span className="px-3 py-1 bg-red-50 text-red-700 rounded-full text-xs font-black border border-red-100 shadow-sm">
-                          Total: {totalDisputes}
-                        </span>
-                      </div>
-                      <p className="text-3xl font-black text-red-600">{totalDisputes}</p>
-                      <p className="text-[9px] text-slate-400 mt-2">PPP In Scope Records</p>
+              {/* Dispute Resolution Rate */}
+              <div className="max-w-md">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                      <div className="w-2 h-4 bg-amber-600 rounded-full" />
+                      Dispute Resolution Rate
+                    </h3>
+                    <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-black border border-amber-100 shadow-sm">
+                      Rate: {overallMetrics.totalPPPReach > 0 ? ((overallMetrics.totalTsTicketResolved / overallMetrics.totalPPPReach) * 100).toFixed(2) : 0}%
+                    </span>
+                  </div>
+                  <p className="text-3xl font-black text-amber-600">{overallMetrics.totalPPPReach > 0 ? ((overallMetrics.totalTsTicketResolved / overallMetrics.totalPPPReach) * 100).toFixed(2) : 0}%</p>
+                  <p className="text-[9px] text-slate-400 mt-2">(Resolved + Closed Disputes) / Total Reach</p>
+                </div>
+              </div>
+
+              {/* Funnel Graphics Section */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                {/* Buyer Journey Funnel */}
+                <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-3 mb-8">
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <Users className="w-5 h-5 text-blue-600" />
                     </div>
-
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                          <div className="w-2 h-4 bg-amber-600 rounded-full" />
-                          Dispute Resolution Rate
-                        </h3>
-                        <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-black border border-amber-100 shadow-sm">
-                          Rate: {disputeRate}%
-                        </span>
-                      </div>
-                      <p className="text-3xl font-black text-amber-600">{disputeRate}%</p>
-                      <p className="text-[9px] text-slate-400 mt-2">(Resolved + Closed Disputes) / Total Reach</p>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Buyer Journey Funnel</h3>
+                      <p className="text-xs text-slate-500">Conversion from Reach to In-Scope Disputes</p>
                     </div>
                   </div>
-                );
-              })()}
+
+                  <div className="flex flex-col gap-4">
+                    {[
+                      { label: 'Total PPP Reach', value: overallMetrics.totalPPPReach, color: 'bg-blue-600', sub: 'Total Potential Reach' },
+                      { label: 'PPP Help page users', value: overallMetrics.identifiedBuyers, color: 'bg-blue-500', sub: 'Identified via Help Page' },
+                      { label: 'PPP VOC users', value: overallMetrics.totalVOC, color: 'bg-blue-400', sub: 'Voice of Customer Channels' },
+                      { label: 'Dispute raised', value: overallMetrics.disputeRaised, color: 'bg-blue-300', sub: 'Initial Disputes Logged' },
+                      { label: 'PPP In scope', value: overallMetrics.pppInScopeCount, color: 'bg-blue-200', sub: 'Validated In-Scope Records' },
+                    ].map((step, idx, arr) => (
+                      <div key={idx} className="relative">
+                        <div className="flex items-center gap-4">
+                          <div className={cn("w-16 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-sm", step.color)}>
+                            {idx + 1}
+                          </div>
+                          <div className="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center justify-between group hover:border-blue-200 transition-colors">
+                            <div>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{step.label}</p>
+                              <p className="text-sm font-bold text-slate-700">{step.sub}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xl font-black text-slate-800">{step.value.toLocaleString()}</p>
+                              {idx > 0 && (
+                                <p className="text-[10px] font-bold text-emerald-600">
+                                  {((step.value / arr[0].value) * 100).toFixed(1)}% of Reach
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {idx < arr.length - 1 && (
+                          <div className="ml-8 w-0.5 h-4 bg-slate-200 my-1" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* TS Complaint Resolution Funnel */}
+                <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-3 mb-8">
+                    <div className="p-2 bg-amber-50 rounded-lg">
+                      <Ticket className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">TS Complaint Resolution Funnel</h3>
+                      <p className="text-xs text-slate-500">Unresolved Tickets Breakdown & Recovery</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    {[
+                      { label: 'Total unresolved', value: overallMetrics.totalUnresolved, color: 'bg-amber-600', sub: 'Pending TS Tickets' },
+                      { label: 'Total unresolved advance paid', value: overallMetrics.unresolvedAdvancePaid, color: 'bg-amber-500', sub: 'Advance Paid Issues' },
+                      { label: 'PPP Cases', value: overallMetrics.pppCases, color: 'bg-amber-400', sub: 'Subset of Advance Paid' },
+                      { label: 'PPP In scope', value: overallMetrics.pppInScopeCount, color: 'bg-amber-300', sub: 'Subset of Advance Paid' },
+                    ].map((step, idx, arr) => (
+                      <div key={idx} className="relative">
+                        <div className="flex items-center gap-4">
+                          <div className={cn("w-16 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-sm", step.color)}>
+                            {idx === 0 ? <TrendingDown className="w-6 h-6" /> : idx + 1}
+                          </div>
+                          <div className="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center justify-between group hover:border-amber-200 transition-colors">
+                            <div>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{step.label}</p>
+                              <p className="text-sm font-bold text-slate-700">{step.sub}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xl font-black text-slate-800">{step.value.toLocaleString()}</p>
+                              {idx > 0 && (
+                                <p className="text-[10px] font-bold text-amber-600">
+                                  {((step.value / arr[0].value) * 100).toFixed(1)}% of Unresolved
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {idx < arr.length - 1 && (
+                          <div className="ml-8 w-0.5 h-4 bg-slate-200 my-1" />
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Additional TS Metrics */}
+                    <div className="mt-4 grid grid-cols-2 gap-4">
+                      <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">PPP Eligible Amount</p>
+                        <p className="text-xl font-black text-emerald-700">₹{overallMetrics.pppEligibleAmount.toLocaleString()}</p>
+                      </div>
+                      <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">PPP Refund Status</p>
+                          <CheckCircle2 className="w-3 h-3 text-blue-600" />
+                        </div>
+                        <p className="text-xl font-black text-blue-700">{overallMetrics.refundDoneCount.toLocaleString()}</p>
+                        <p className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">Refund Done Status</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : null}
         </div>
