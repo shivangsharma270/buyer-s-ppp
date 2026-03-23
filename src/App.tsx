@@ -327,6 +327,11 @@ export default function App() {
     });
   }, [tsClosedData, overallStartDate, overallEndDate]);
 
+  const filteredOverallPppInScopeData = useMemo(() => {
+    const validTicketIds = new Set(filteredOverallTsData.map(t => t.id));
+    return pppInScopeData.filter(item => validTicketIds.has(item.ticketId));
+  }, [pppInScopeData, filteredOverallTsData]);
+
   const stats = {
     total: filteredData.length,
     uniqueGlids: new Set(filteredData.map(d => d.buyerGlid)).size,
@@ -373,7 +378,7 @@ export default function App() {
     const totalPPPReach = identifiedBuyers + totalVOC;
 
     // 2. Dispute Raised
-    const disputeRaised = pppInScopeData.length;
+    const disputeRaised = filteredOverallPppInScopeData.length;
 
     // 3. Total PPP Eligible
     const totalPPPEligible = filteredOverallTsData.filter(d => (d.pppStatus || '').toLowerCase() === 'yes').length;
@@ -403,16 +408,16 @@ export default function App() {
     ).length;
 
     // PPP In Scope (subset of advance paid)
-    const pppInScopeCount = pppInScopeData.length;
+    const pppInScopeCount = filteredOverallPppInScopeData.length;
 
-    // PPP Eligible Amount (Sum of disputeAmount in pppInScopeData)
-    const pppEligibleAmount = pppInScopeData.reduce((sum, d) => {
+    // PPP Eligible Amount (Sum of disputeAmount in filteredOverallPppInScopeData)
+    const pppEligibleAmount = filteredOverallPppInScopeData.reduce((sum, d) => {
       const val = String(d.disputeAmount || '0').replace(/[^0-9.]/g, '');
       return sum + (parseFloat(val) || 0);
     }, 0);
 
     // Refund Done Status
-    const refundDoneCount = pppInScopeData.filter(d => 
+    const refundDoneCount = filteredOverallPppInScopeData.filter(d => 
       (d.refundStatus || '').toLowerCase().includes('done') || 
       (d.refundStatus || '').toLowerCase().includes('refunded')
     ).length;
@@ -432,7 +437,7 @@ export default function App() {
       pppEligibleAmount,
       refundDoneCount
     };
-  }, [filteredOverallVisitData, pppInScopeData, filteredOverallTsData, filteredOverallTsClosedData]);
+  }, [filteredOverallVisitData, filteredOverallPppInScopeData, filteredOverallTsData, filteredOverallTsClosedData]);
 
   const chartData = useMemo(() => {
     const dateGroups: Record<string, Record<string, number>> = {};
