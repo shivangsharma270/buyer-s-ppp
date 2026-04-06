@@ -2608,33 +2608,30 @@ export default function App() {
                       <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Traffic</h3>
                     </div>
                   </div>
-                  <div className="flex-1 flex flex-col gap-4">
-                    {/* Total Traffic */}
-                    <div className="bg-blue-50/30 rounded-2xl p-5 border border-blue-100/50 group-hover:border-blue-200 transition-colors">
-                      <p className="text-xl font-black text-blue-600 uppercase tracking-tight mb-1">Total Traffic</p>
-                      <div className="flex items-baseline gap-2">
-                        <p className="text-lg font-black text-slate-800">
-                          {overallMetrics.totalTraffic.toLocaleString()}
-                        </p>
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Help Page */}
-                      <div className="bg-emerald-50/30 rounded-2xl p-5 border border-emerald-100/50 group-hover:border-emerald-200 transition-colors">
-                        <p className="text-xl font-black text-emerald-600 uppercase tracking-tight mb-1">Help Page</p>
-                        <p className="text-lg font-black text-slate-800">
-                          {overallMetrics.helpPageTraffic.toLocaleString()}
-                        </p>
-                      </div>
-
-                      {/* VOC Data */}
-                      <div className="bg-amber-50/30 rounded-2xl p-5 border border-amber-100/50 group-hover:border-amber-200 transition-colors">
-                        <p className="text-xl font-black text-amber-600 uppercase tracking-tight mb-1">VOC Data</p>
-                        <p className="text-lg font-black text-slate-800">
-                          {overallMetrics.vocDataTraffic.toLocaleString()}
-                        </p>
+                  <div className="flex-1 flex flex-col justify-center">
+                    <div className="bg-slate-50/50 rounded-[2rem] p-8 border border-slate-100 group-hover:border-blue-200 transition-all duration-300">
+                      <div className="grid grid-cols-3 gap-6 divide-x divide-slate-200">
+                        <div className="text-center">
+                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3">Total Traffic</p>
+                          <div className="flex flex-col items-center gap-1">
+                            <p className="text-3xl font-black text-slate-800 tracking-tight">
+                              {overallMetrics.totalTraffic.toLocaleString()}
+                            </p>
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          </div>
+                        </div>
+                        <div className="text-center pl-6">
+                          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3">Help Page</p>
+                          <p className="text-3xl font-black text-slate-800 tracking-tight">
+                            {overallMetrics.helpPageTraffic.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="text-center pl-6">
+                          <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3">VOC Data</p>
+                          <p className="text-3xl font-black text-slate-800 tracking-tight">
+                            {overallMetrics.vocDataTraffic.toLocaleString()}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
