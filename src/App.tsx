@@ -885,7 +885,7 @@ export default function App() {
                 <LayoutDashboard className="w-4 h-4 text-white" />
               </div>
               <h1 className="text-sm font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600">
-                Buyer's Payment Protection Plan
+                Buyer's Payment Protection Plan Dashboard
               </h1>
             </div>
             <div className="flex items-center gap-4">
