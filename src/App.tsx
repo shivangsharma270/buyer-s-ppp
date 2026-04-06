@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { LayoutDashboard, Table as TableIcon, Loader2, AlertCircle, RefreshCw, Calendar, Filter, X, BarChart3, ArrowRight, ChevronRight, TrendingDown, Users, Ticket, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, Table as TableIcon, Loader2, AlertCircle, RefreshCw, Calendar, Filter, X, BarChart3, ArrowRight, ChevronRight, TrendingDown, Users, Ticket, CheckCircle2, Search } from 'lucide-react';
 import { fetchSourceOfVisitData, fetchTSDataBifurcation, fetchPPPInScopeData, fetchTSClosedTicketsData, SourceOfVisitData, TSDataBifurcationRow, PPPInScopeRow, TSClosedTicketsRow } from './services/sheetService';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -38,6 +38,8 @@ export default function App() {
   const [tsLoading, setTsLoading] = useState(true);
   const [tsError, setTsError] = useState<string | null>(null);
   const [selectedTsRow, setSelectedTsRow] = useState<TSDataBifurcationRow | null>(null);
+  const [showCaseStudiesModal, setShowCaseStudiesModal] = useState(false);
+  const [caseStudiesSearch, setCaseStudiesSearch] = useState('');
   const [graphClickType, setGraphClickType] = useState<string | null>(null);
   const [graphClickValue, setGraphClickValue] = useState<string | null>(null);
   const [graphClickedTickets, setGraphClickedTickets] = useState<TSDataBifurcationRow[]>([]);
@@ -328,9 +330,46 @@ export default function App() {
   }, [tsClosedData, overallStartDate, overallEndDate]);
 
   const filteredOverallPppInScopeData = useMemo(() => {
-    const validTicketIds = new Set(filteredOverallTsData.map(t => t.id));
-    return pppInScopeData.filter(item => validTicketIds.has(item.ticketId));
-  }, [pppInScopeData, filteredOverallTsData]);
+    return pppInScopeData.filter(item => {
+      const dateValue = item.caseStudySharedDate || '';
+      if (overallStartDate || overallEndDate) {
+        const itemDate = parseSheetDate(dateValue);
+        if (!itemDate) return false;
+
+        const start = overallStartDate ? startOfDay(new Date(overallStartDate)) : null;
+        const end = overallEndDate ? endOfDay(new Date(overallEndDate)) : null;
+
+        if (start && end) {
+          return isWithinInterval(itemDate, { start, end });
+        } else if (start) {
+          return itemDate >= start;
+        } else if (end) {
+          return itemDate <= end;
+        }
+      }
+      return true;
+    });
+  }, [pppInScopeData, overallStartDate, overallEndDate]);
+
+  const filteredCaseStudiesForModal = useMemo(() => {
+    if (!caseStudiesSearch) return filteredOverallPppInScopeData;
+    const term = caseStudiesSearch.toLowerCase();
+    return filteredOverallPppInScopeData.filter(item => {
+      return Object.values(item).some(val => 
+        String(val).toLowerCase().includes(term)
+      );
+    });
+  }, [filteredOverallPppInScopeData, caseStudiesSearch]);
+
+  const caseStudyHeaders = useMemo(() => {
+    if (pppInScopeData.length === 0) return [];
+    // Get all unique keys from all items to be safe, but first item is usually enough
+    const keys = new Set<string>();
+    pppInScopeData.forEach(item => {
+      Object.keys(item).forEach(k => keys.add(k));
+    });
+    return Array.from(keys);
+  }, [pppInScopeData]);
 
   const stats = {
     total: filteredData.length,
@@ -450,6 +489,7 @@ export default function App() {
       identifiedBuyers,
       totalVOC,
       disputeRaised,
+      caseStudiesCount: filteredOverallPppInScopeData.length,
       totalPPPEligible,
       totalTsTicketIssued,
       totalTsTicketResolved,
@@ -2640,8 +2680,20 @@ export default function App() {
                       <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Case Studies</h3>
                     </div>
                   </div>
-                  <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
-                    <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">Case Study Insights Content</p>
+                  <div className="flex-1 flex flex-col justify-center gap-4">
+                    <div 
+                      onClick={() => setShowCaseStudiesModal(true)}
+                      className="bg-purple-50/30 rounded-2xl p-6 border border-purple-100/50 group-hover:border-purple-200 transition-all cursor-pointer hover:shadow-md active:scale-[0.98]"
+                    >
+                      <p className="text-xl font-black text-purple-600 uppercase tracking-tight mb-2">Total Case Studies</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-5xl font-black text-slate-800 tracking-tight">
+                          {overallMetrics.caseStudiesCount.toLocaleString()}
+                        </p>
+                        <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest">Click to view details</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2921,6 +2973,93 @@ export default function App() {
           background: #CBD5E1;
         }
       `}} />
+      {showCaseStudiesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-7xl bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-slate-50/50">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Case Studies Details</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Showing {filteredCaseStudiesForModal.length} case study(ies)
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search case studies..."
+                    value={caseStudiesSearch}
+                    onChange={(e) => setCaseStudiesSearch(e.target.value)}
+                    className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-purple-500 w-64"
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    setShowCaseStudiesModal(false);
+                    setCaseStudiesSearch('');
+                  }}
+                  className="text-slate-400 hover:text-slate-700 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto">
+              {filteredCaseStudiesForModal.length > 0 ? (
+                <div className="min-w-full inline-block align-middle">
+                  <div className="overflow-hidden">
+                    <table className="min-w-full divide-y divide-slate-200">
+                      <thead className="bg-slate-50 sticky top-0 z-10">
+                        <tr>
+                          {caseStudyHeaders.map(header => (
+                            <th 
+                              key={header}
+                              className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap"
+                            >
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-slate-100">
+                        {filteredCaseStudiesForModal.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-purple-50/30 transition-colors">
+                            {caseStudyHeaders.map(header => (
+                              <td key={header} className="px-6 py-4 whitespace-nowrap">
+                                <span className="text-sm font-medium text-slate-600">
+                                  {row[header] || '—'}
+                                </span>
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                  <TableIcon className="w-16 h-16 opacity-20 mb-4" />
+                  <p className="text-lg font-bold uppercase tracking-widest">No Case Studies Found</p>
+                  <p className="text-sm mt-2">Try adjusting your filters or search term</p>
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-slate-100 text-right bg-slate-50/50">
+              <button
+                onClick={() => {
+                  setShowCaseStudiesModal(false);
+                  setCaseStudiesSearch('');
+                }}
+                className="px-6 py-2.5 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
