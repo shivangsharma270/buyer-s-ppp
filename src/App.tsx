@@ -365,6 +365,26 @@ export default function App() {
 
   const overallMetrics = useMemo(() => {
     // 1. Total PPP Reach
+    const totalTraffic = new Set(
+      filteredOverallVisitData
+        .map(d => (d.buyerGlid || '').trim())
+        .filter(glid => glid && glid.toLowerCase() !== '(not set)')
+    ).size;
+
+    const helpPageTraffic = new Set(
+      filteredOverallVisitData
+        .filter(d => d.source.toLowerCase() === 'help.im')
+        .map(d => (d.buyerGlid || '').trim())
+        .filter(glid => glid && glid.toLowerCase() !== '(not set)')
+    ).size;
+
+    const vocDataTraffic = new Set(
+      filteredOverallVisitData
+        .filter(d => d.source === '9696')
+        .map(d => (d.buyerGlid || '').trim())
+        .filter(glid => glid && glid.toLowerCase() !== '(not set)')
+    ).size;
+
     const identifiedBuyers = new Set(filteredOverallVisitData.filter(d => d.source.toLowerCase() === 'help.im' && /^\d+$/.test(d.buyerGlid)).map(d => d.buyerGlid)).size;
     const vocCallCenter = filteredOverallVisitData.filter(d => d.source === '9696').length;
     const vocMails = filteredOverallVisitData.filter(d => d.source.toLowerCase().includes('mail')).length;
@@ -423,6 +443,9 @@ export default function App() {
     ).length;
 
     return {
+      totalTraffic,
+      helpPageTraffic,
+      vocDataTraffic,
       totalPPPReach,
       identifiedBuyers,
       totalVOC,
@@ -2529,6 +2552,96 @@ export default function App() {
                       onChange={(e) => setOverallEndDate(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2x2 Tile Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1">
+                {/* Tile 1: Traffic */}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-blue-200 transition-all duration-300">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-blue-50 rounded-2xl group-hover:bg-blue-100 transition-colors">
+                      <Users className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Traffic</h3>
+                    </div>
+                  </div>
+                  <div className="flex-1 flex flex-col gap-4">
+                    {/* Total Traffic */}
+                    <div className="bg-blue-50/30 rounded-2xl p-5 border border-blue-100/50 group-hover:border-blue-200 transition-colors">
+                      <p className="text-xl font-black text-blue-600 uppercase tracking-tight mb-1">Total Traffic</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-lg font-black text-slate-800">
+                          {overallMetrics.totalTraffic.toLocaleString()}
+                        </p>
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Help Page */}
+                      <div className="bg-emerald-50/30 rounded-2xl p-5 border border-emerald-100/50 group-hover:border-emerald-200 transition-colors">
+                        <p className="text-xl font-black text-emerald-600 uppercase tracking-tight mb-1">Help Page</p>
+                        <p className="text-lg font-black text-slate-800">
+                          {overallMetrics.helpPageTraffic.toLocaleString()}
+                        </p>
+                      </div>
+
+                      {/* VOC Data */}
+                      <div className="bg-amber-50/30 rounded-2xl p-5 border border-amber-100/50 group-hover:border-amber-200 transition-colors">
+                        <p className="text-xl font-black text-amber-600 uppercase tracking-tight mb-1">VOC Data</p>
+                        <p className="text-lg font-black text-slate-800">
+                          {overallMetrics.vocDataTraffic.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tile 2: Tickets */}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-amber-200 transition-all duration-300">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-amber-50 rounded-2xl group-hover:bg-amber-100 transition-colors">
+                      <Ticket className="w-6 h-6 text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Tickets</h3>
+                    </div>
+                  </div>
+                  <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
+                    <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">Ticket Analysis Content</p>
+                  </div>
+                </div>
+
+                {/* Tile 3: PPP */}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-emerald-200 transition-all duration-300">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-emerald-50 rounded-2xl group-hover:bg-emerald-100 transition-colors">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">PPP</h3>
+                    </div>
+                  </div>
+                  <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
+                    <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">PPP Program Content</p>
+                  </div>
+                </div>
+
+                {/* Tile 4: Case Studies */}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-purple-200 transition-all duration-300">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-purple-50 rounded-2xl group-hover:bg-purple-100 transition-colors">
+                      <ArrowRight className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Case Studies</h3>
+                    </div>
+                  </div>
+                  <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
+                    <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">Case Study Insights Content</p>
                   </div>
                 </div>
               </div>
