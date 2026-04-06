@@ -494,6 +494,13 @@ export default function App() {
       (d.refundStatus || '').toLowerCase().includes('refunded')
     ).length;
 
+    // Refund Status Bifurcation
+    const refundStatusBifurcation = filteredOverallPppInScopeData.reduce((acc, d) => {
+      const status = (d.refundStatus || 'Unknown').trim();
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
     return {
       totalTraffic,
       helpPageTraffic,
@@ -513,7 +520,8 @@ export default function App() {
       pppCases,
       pppInScopeCount,
       pppEligibleAmount,
-      refundDoneCount
+      refundDoneCount,
+      refundStatusBifurcation
     };
   }, [filteredOverallVisitData, filteredOverallPppInScopeData, filteredOverallTsData, filteredOverallTsClosedData]);
 
@@ -2697,18 +2705,51 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Tile 3: PPP */}
+                {/* Tile 3: PPP Eligible */}
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-emerald-200 transition-all duration-300">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="p-3 bg-emerald-50 rounded-2xl group-hover:bg-emerald-100 transition-colors">
                       <CheckCircle2 className="w-6 h-6 text-emerald-600" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">PPP</h3>
+                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">PPP Eligible</h3>
                     </div>
                   </div>
-                  <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
-                    <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">PPP Program Content</p>
+                  <div className="flex-1 flex flex-col gap-4">
+                    {/* (a) PPP Applicable Tickets */}
+                    <div className="bg-emerald-50/30 rounded-2xl p-5 border border-emerald-100/50 group-hover:border-emerald-200 transition-all duration-300">
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">PPP Applicable Tickets</p>
+                      <p className="text-3xl font-black text-slate-800 tracking-tight">
+                        {overallMetrics.pppInScopeCount.toLocaleString()}
+                      </p>
+                    </div>
+
+                    {/* (b) Disputed Amount */}
+                    <div className="bg-blue-50/30 rounded-2xl p-5 border border-blue-100/50 group-hover:border-blue-200 transition-all duration-300">
+                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Disputed Amount</p>
+                      <p className="text-3xl font-black text-slate-800 tracking-tight">
+                        ₹{overallMetrics.pppEligibleAmount.toLocaleString()}
+                      </p>
+                    </div>
+
+                    {/* (c) Status */}
+                    <div className="bg-slate-50/50 rounded-2xl p-5 border border-slate-100 group-hover:border-slate-200 transition-all duration-300">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Refund Status Bifurcation</p>
+                      <div className="space-y-2">
+                        {Object.entries(overallMetrics.refundStatusBifurcation).length > 0 ? (
+                          Object.entries(overallMetrics.refundStatusBifurcation).map(([status, count]) => (
+                            <div key={status} className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-600 truncate mr-2">{status}</span>
+                              <span className="text-xs font-black text-slate-800 bg-white px-2 py-0.5 rounded-full border border-slate-100 shadow-sm">
+                                {count.toLocaleString()}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-slate-400 italic">No data available</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
