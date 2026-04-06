@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { LayoutDashboard, Table as TableIcon, Loader2, AlertCircle, RefreshCw, Calendar, Filter, X, BarChart3, ArrowRight, ChevronRight, TrendingDown, Users, Ticket, CheckCircle2, Search } from 'lucide-react';
+import { LayoutDashboard, Table as TableIcon, Loader2, AlertCircle, RefreshCw, Calendar, Filter, X, BarChart3, ArrowRight, ChevronRight, TrendingDown, Users, Ticket, CheckCircle2, Search, ShieldCheck } from 'lucide-react';
 import { fetchSourceOfVisitData, fetchTSDataBifurcation, fetchPPPInScopeData, fetchTSClosedTicketsData, SourceOfVisitData, TSDataBifurcationRow, PPPInScopeRow, TSClosedTicketsRow } from './services/sheetService';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -424,6 +424,19 @@ export default function App() {
         .filter(glid => glid && glid.toLowerCase() !== '(not set)')
     ).size;
 
+    const bsTicketsRaised = filteredOverallVisitData.filter(d => {
+      const tid = (d.ticketId || '').trim();
+      const glid = (d.buyerGlid || '').trim().toLowerCase();
+      return tid && tid !== '#N/A' && glid && glid !== '(not set)';
+    }).length;
+
+    const pppApplicableTickets = filteredOverallVisitData.filter(d => {
+      const tid = (d.ticketId || '').trim();
+      const glid = (d.buyerGlid || '').trim().toLowerCase();
+      const ppp = (d.pppApplicable || '').trim().toUpperCase();
+      return tid && tid !== '#N/A' && glid && glid !== '(not set)' && ppp === 'YES';
+    }).length;
+
     const identifiedBuyers = new Set(filteredOverallVisitData.filter(d => d.source.toLowerCase() === 'help.im' && /^\d+$/.test(d.buyerGlid)).map(d => d.buyerGlid)).size;
     const vocCallCenter = filteredOverallVisitData.filter(d => d.source === '9696').length;
     const vocMails = filteredOverallVisitData.filter(d => d.source.toLowerCase().includes('mail')).length;
@@ -485,6 +498,8 @@ export default function App() {
       totalTraffic,
       helpPageTraffic,
       vocDataTraffic,
+      bsTicketsRaised,
+      pppApplicableTickets,
       totalPPPReach,
       identifiedBuyers,
       totalVOC,
@@ -2608,29 +2623,59 @@ export default function App() {
                       <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Traffic</h3>
                     </div>
                   </div>
-                  <div className="flex-1 flex flex-col justify-center">
-                    <div className="bg-slate-50/50 rounded-[2rem] p-8 border border-slate-100 group-hover:border-blue-200 transition-all duration-300">
-                      <div className="grid grid-cols-3 gap-6 divide-x divide-slate-200">
+                  <div className="flex-1 flex flex-col justify-center gap-4">
+                    <div className="bg-slate-50/50 rounded-[2rem] p-6 border border-slate-100 group-hover:border-blue-200 transition-all duration-300">
+                      <div className="grid grid-cols-3 gap-4 divide-x divide-slate-200">
                         <div className="text-center">
-                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3">Total Traffic</p>
+                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">Total Traffic</p>
                           <div className="flex flex-col items-center gap-1">
-                            <p className="text-3xl font-black text-slate-800 tracking-tight">
+                            <p className="text-2xl font-black text-slate-800 tracking-tight">
                               {overallMetrics.totalTraffic.toLocaleString()}
                             </p>
                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                           </div>
                         </div>
-                        <div className="text-center pl-6">
-                          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3">Help Page</p>
-                          <p className="text-3xl font-black text-slate-800 tracking-tight">
+                        <div className="text-center pl-4">
+                          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2">Help Page</p>
+                          <p className="text-2xl font-black text-slate-800 tracking-tight">
                             {overallMetrics.helpPageTraffic.toLocaleString()}
                           </p>
                         </div>
-                        <div className="text-center pl-6">
-                          <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3">VOC Data</p>
-                          <p className="text-3xl font-black text-slate-800 tracking-tight">
+                        <div className="text-center pl-4">
+                          <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">VOC Data</p>
+                          <p className="text-2xl font-black text-slate-800 tracking-tight">
                             {overallMetrics.vocDataTraffic.toLocaleString()}
                           </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* BS Tickets Raised Subtile */}
+                    <div className="bg-indigo-50/30 rounded-2xl p-5 border border-indigo-100/50 group-hover:border-indigo-200 transition-all duration-300">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">BS Tickets Raised</p>
+                          <p className="text-3xl font-black text-slate-800 tracking-tight">
+                            {overallMetrics.bsTicketsRaised.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-indigo-100/50 rounded-xl">
+                          <Ticket className="w-5 h-5 text-indigo-600" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* PPP Applicable Tickets Subtile */}
+                    <div className="bg-rose-50/30 rounded-2xl p-5 border border-rose-100/50 group-hover:border-rose-200 transition-all duration-300">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">PPP Applicable Tickets</p>
+                          <p className="text-3xl font-black text-slate-800 tracking-tight">
+                            {overallMetrics.pppApplicableTickets.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-rose-100/50 rounded-xl">
+                          <ShieldCheck className="w-5 h-5 text-rose-600" />
                         </div>
                       </div>
                     </div>
