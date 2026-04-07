@@ -313,8 +313,11 @@ export default function App() {
 
   const filteredOverallTsClosedData = useMemo(() => {
     return tsClosedData.filter(item => {
+      // Exclude empty/null Ticket IDs
+      if (!item.ticketId || item.ticketId === '#N/A') return false;
+
       if (overallStartDate || overallEndDate) {
-        const itemDate = parseSheetDate(item.issueDate);
+        const itemDate = parseSheetDate(item.closeDate);
         if (!itemDate) return false;
 
         const start = overallStartDate ? startOfDay(new Date(overallStartDate)) : null;
@@ -464,6 +467,16 @@ export default function App() {
     // 5. Total TS Ticket Resolved
     const totalTsTicketResolved = filteredOverallTsClosedData.length;
 
+    const tsClosedResolved = filteredOverallTsClosedData.filter(d => 
+      (d.ticketStage || '').trim() === 'Resolved'
+    ).length;
+
+    const tsClosedUnresolved = totalTsTicketResolved - tsClosedResolved;
+
+    const tsClosedPppApplicable = filteredOverallTsClosedData.filter(d => 
+      (d.ticketStage || '').trim() === 'PPP - Case Study'
+    ).length;
+
     // --- Funnel Calculations ---
     
     // Unresolved Tickets
@@ -518,6 +531,9 @@ export default function App() {
       totalPPPEligible,
       totalTsTicketIssued,
       totalTsTicketResolved,
+      tsClosedResolved,
+      tsClosedUnresolved,
+      tsClosedPppApplicable,
       totalUnresolved,
       unresolvedAdvancePaid,
       pppCases,
@@ -2703,7 +2719,8 @@ export default function App() {
                       <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Tickets</h3>
                     </div>
                   </div>
-                  <div className="flex-1 flex flex-col justify-center">
+                  <div className="flex-1 flex flex-col gap-4">
+                    {/* (a) Total TS Clients Tickets Issued */}
                     <div className="bg-amber-50/30 rounded-2xl p-6 border border-amber-100/50 group-hover:border-amber-200 transition-all duration-300">
                       <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3">Total TS Clients Tickets Issued</p>
                       <div className="flex items-center gap-4">
@@ -2714,8 +2731,44 @@ export default function App() {
                           <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                         </div>
                       </div>
+                    </div>
+
+                    {/* (b) TS Client Closed Tickets */}
+                    <div className="bg-emerald-50/30 rounded-2xl p-6 border border-emerald-100/50 group-hover:border-emerald-200 transition-all duration-300">
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3">TS Client Closed Tickets</p>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-5xl font-black text-slate-800 tracking-tight">
+                            {overallMetrics.totalTsTicketResolved.toLocaleString()}
+                          </p>
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        </div>
+                      </div>
+                      
+                      {/* Sub-metrics for Closed Tickets */}
+                      <div className="grid grid-cols-3 gap-3 mt-6">
+                        <div className="bg-white/60 rounded-xl p-3 border border-emerald-100/50">
+                          <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Resolved</p>
+                          <p className="text-lg font-black text-slate-800 tracking-tight">
+                            {overallMetrics.tsClosedResolved.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="bg-white/60 rounded-xl p-3 border border-emerald-100/50">
+                          <p className="text-[9px] font-black text-rose-600 uppercase tracking-widest mb-1">Unresolved</p>
+                          <p className="text-lg font-black text-slate-800 tracking-tight">
+                            {overallMetrics.tsClosedUnresolved.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="bg-white/60 rounded-xl p-3 border border-emerald-100/50">
+                          <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">PPP Case Study</p>
+                          <p className="text-lg font-black text-slate-800 tracking-tight">
+                            {overallMetrics.tsClosedPppApplicable.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+
                       <p className="text-[10px] font-bold text-slate-400 mt-4 uppercase tracking-widest">
-                        Live from Google Sheets
+                        Filtered by Closed Date
                       </p>
                     </div>
                   </div>
