@@ -2767,9 +2767,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      <p className="text-[10px] font-bold text-slate-400 mt-4 uppercase tracking-widest">
-                        Filtered by Closed Date
-                      </p>
+                      
                     </div>
                   </div>
                 </div>
