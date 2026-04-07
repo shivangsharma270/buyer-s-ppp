@@ -52,6 +52,7 @@ export interface PPPInScopeRow {
   disputeAmount: string;
   caseStudyThread: string;
   caseStudySharedDate: string;
+  ticketIssueDate: string;
   [key: string]: string;
 }
 
@@ -192,6 +193,7 @@ export async function fetchPPPInScopeData(): Promise<PPPInScopeRow[]> {
               disputeAmount: (row['Dispute Amount'] || '').trim(),
               caseStudyThread: (row['Case Study Thread'] || '').trim(),
               caseStudySharedDate: (row['Case Study Shared Date'] || '').trim(),
+              ticketIssueDate: (row['Ticket Issue Date'] || row['Issue Date'] || '').trim(),
             };
             // Store all other columns for modal display
             Object.keys(row).forEach(key => {

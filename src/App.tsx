@@ -337,6 +337,28 @@ export default function App() {
 
   const filteredOverallPppInScopeData = useMemo(() => {
     return pppInScopeData.filter(item => {
+      const dateValue = item.ticketIssueDate || '';
+      if (overallStartDate || overallEndDate) {
+        const itemDate = parseSheetDate(dateValue);
+        if (!itemDate) return false;
+
+        const start = overallStartDate ? startOfDay(new Date(overallStartDate)) : null;
+        const end = overallEndDate ? endOfDay(new Date(overallEndDate)) : null;
+
+        if (start && end) {
+          return isWithinInterval(itemDate, { start, end });
+        } else if (start) {
+          return itemDate >= start;
+        } else if (end) {
+          return itemDate <= end;
+        }
+      }
+      return true;
+    });
+  }, [pppInScopeData, overallStartDate, overallEndDate]);
+
+  const filteredCaseStudiesData = useMemo(() => {
+    return pppInScopeData.filter(item => {
       const dateValue = item.caseStudySharedDate || '';
       if (overallStartDate || overallEndDate) {
         const itemDate = parseSheetDate(dateValue);
@@ -358,14 +380,14 @@ export default function App() {
   }, [pppInScopeData, overallStartDate, overallEndDate]);
 
   const filteredCaseStudiesForModal = useMemo(() => {
-    if (!caseStudiesSearch) return filteredOverallPppInScopeData;
+    if (!caseStudiesSearch) return filteredCaseStudiesData;
     const term = caseStudiesSearch.toLowerCase();
-    return filteredOverallPppInScopeData.filter(item => {
+    return filteredCaseStudiesData.filter(item => {
       return Object.values(item).some(val => 
         String(val).toLowerCase().includes(term)
       );
     });
-  }, [filteredOverallPppInScopeData, caseStudiesSearch]);
+  }, [filteredCaseStudiesData, caseStudiesSearch]);
 
   const caseStudyHeaders = useMemo(() => {
     if (pppInScopeData.length === 0) return [];
@@ -527,7 +549,7 @@ export default function App() {
       identifiedBuyers,
       totalVOC,
       disputeRaised,
-      caseStudiesCount: filteredOverallPppInScopeData.length,
+      caseStudiesCount: filteredCaseStudiesData.length,
       totalPPPEligible,
       totalTsTicketIssued,
       totalTsTicketResolved,
@@ -2827,7 +2849,7 @@ export default function App() {
                       <ArrowRight className="w-6 h-6 text-purple-600" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Case Studies</h3>
+                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Case Studies Shared</h3>
                     </div>
                   </div>
                   <div className="flex-1 flex flex-col justify-center gap-4">
