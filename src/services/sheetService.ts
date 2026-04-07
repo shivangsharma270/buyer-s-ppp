@@ -60,6 +60,8 @@ const SOURCE_OF_VISIT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/11Uz1Z
 const TS_DATA_BIFURCATION_SHEET_URL = 'https://docs.google.com/spreadsheets/d/11Uz1ZKM3Kzu0-Wt_Uw5k0kODwR9vrotPazo2irtZwWY/export?format=csv&gid=169733764';
 const TS_CLOSED_TICKETS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/11Uz1ZKM3Kzu0-Wt_Uw5k0kODwR9vrotPazo2irtZwWY/export?format=csv&gid=1707711547';
 const PPP_IN_SCOPE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/11Uz1ZKM3Kzu0-Wt_Uw5k0kODwR9vrotPazo2irtZwWY/export?format=csv&gid=574816043';
+const PAID_BS_TICKETS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/11Uz1ZKM3Kzu0-Wt_Uw5k0kODwR9vrotPazo2irtZwWY/export?format=csv&gid=659390119';
+const FREE_BS_TICKETS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/11Uz1ZKM3Kzu0-Wt_Uw5k0kODwR9vrotPazo2irtZwWY/export?format=csv&gid=404612441';
 
 export async function fetchSourceOfVisitData(): Promise<SourceOfVisitData[]> {
   try {
@@ -249,6 +251,56 @@ export async function fetchTSClosedTicketsData(): Promise<TSClosedTicketsRow[]> 
     });
   } catch (error) {
     console.error('Error fetching TS Closed Tickets sheet data:', error);
+    throw error;
+  }
+}
+
+export async function fetchPaidBSTicketsData(): Promise<any[]> {
+  try {
+    const response = await fetch(PAID_BS_TICKETS_SHEET_URL);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const csvText = await response.text();
+    
+    return new Promise((resolve, reject) => {
+      Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => header.trim(),
+        complete: (results) => {
+          resolve(results.data);
+        },
+        error: (error: any) => {
+          reject(error);
+        },
+      });
+    });
+  } catch (error) {
+    console.error('Error fetching Paid BS Tickets sheet data:', error);
+    throw error;
+  }
+}
+
+export async function fetchFreeBSTicketsData(): Promise<any[]> {
+  try {
+    const response = await fetch(FREE_BS_TICKETS_SHEET_URL);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const csvText = await response.text();
+    
+    return new Promise((resolve, reject) => {
+      Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => header.trim(),
+        complete: (results) => {
+          resolve(results.data);
+        },
+        error: (error: any) => {
+          reject(error);
+        },
+      });
+    });
+  } catch (error) {
+    console.error('Error fetching Free BS Tickets sheet data:', error);
     throw error;
   }
 }

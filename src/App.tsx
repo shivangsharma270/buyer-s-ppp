@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { LayoutDashboard, Table as TableIcon, Loader2, AlertCircle, RefreshCw, Calendar, Filter, X, BarChart3, ArrowRight, ChevronRight, TrendingDown, Users, Ticket, CheckCircle2, Search, ShieldCheck } from 'lucide-react';
-import { fetchSourceOfVisitData, fetchTSDataBifurcation, fetchPPPInScopeData, fetchTSClosedTicketsData, SourceOfVisitData, TSDataBifurcationRow, PPPInScopeRow, TSClosedTicketsRow } from './services/sheetService';
+import { fetchSourceOfVisitData, fetchTSDataBifurcation, fetchPPPInScopeData, fetchTSClosedTicketsData, fetchPaidBSTicketsData, fetchFreeBSTicketsData, SourceOfVisitData, TSDataBifurcationRow, PPPInScopeRow, TSClosedTicketsRow } from './services/sheetService';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { parse, isWithinInterval, startOfDay, endOfDay, isValid, format } from 'date-fns';
@@ -53,6 +53,14 @@ export default function App() {
   const [tsClosedLoading, setTsClosedLoading] = useState(true);
   const [tsClosedError, setTsClosedError] = useState<string | null>(null);
   const [selectedTsClosedRow, setSelectedTsClosedRow] = useState<TSClosedTicketsRow | null>(null);
+
+  const [paidBsData, setPaidBsData] = useState<any[]>([]);
+  const [paidBsLoading, setPaidBsLoading] = useState(true);
+  const [paidBsError, setPaidBsError] = useState<string | null>(null);
+
+  const [freeBsData, setFreeBsData] = useState<any[]>([]);
+  const [freeBsLoading, setFreeBsLoading] = useState(true);
+  const [freeBsError, setFreeBsError] = useState<string | null>(null);
 
   // Generic Modal States
   const [genericModalOpen, setGenericModalOpen] = useState(false);
@@ -148,11 +156,41 @@ export default function App() {
     }
   };
 
+  const loadPaidBsData = async () => {
+    setPaidBsLoading(true);
+    setPaidBsError(null);
+    try {
+      const result = await fetchPaidBSTicketsData();
+      setPaidBsData(result);
+    } catch (err) {
+      setPaidBsError('Failed to fetch Paid BS Tickets Data.');
+      console.error(err);
+    } finally {
+      setPaidBsLoading(false);
+    }
+  };
+
+  const loadFreeBsData = async () => {
+    setFreeBsLoading(true);
+    setFreeBsError(null);
+    try {
+      const result = await fetchFreeBSTicketsData();
+      setFreeBsData(result);
+    } catch (err) {
+      setFreeBsError('Failed to fetch Free BS Tickets Data.');
+      console.error(err);
+    } finally {
+      setFreeBsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
     loadTSData();
     loadPPPInScopeData();
     loadTSClosedData();
+    loadPaidBsData();
+    loadFreeBsData();
   }, []);
 
   // Helper to parse dates from various formats
@@ -452,6 +490,54 @@ export default function App() {
   }, [filteredOverallTsData, filteredOverallTsClosedData]);
   const tsClosedPppApplicableData = useMemo(() => filteredOverallTsClosedData.filter(d => (d.ticketStage || '').trim() === 'PPP - Case Study'), [filteredOverallTsClosedData]);
 
+  const filteredPaidBsData = useMemo(() => {
+    return paidBsData.filter(item => {
+      const tid = (item['TICKET_ID'] || '').trim();
+      if (!tid || tid === '#N/A') return false;
+
+      if (overallStartDate || overallEndDate) {
+        const itemDate = parseSheetDate(item['ISSUE_DATE']);
+        if (!itemDate) return false;
+
+        const start = overallStartDate ? startOfDay(new Date(overallStartDate)) : null;
+        const end = overallEndDate ? endOfDay(new Date(overallEndDate)) : null;
+
+        if (start && end) {
+          return isWithinInterval(itemDate, { start, end });
+        } else if (start) {
+          return itemDate >= start;
+        } else if (end) {
+          return itemDate <= end;
+        }
+      }
+      return true;
+    });
+  }, [paidBsData, overallStartDate, overallEndDate]);
+
+  const filteredFreeBsData = useMemo(() => {
+    return freeBsData.filter(item => {
+      const tid = (item['TICKET_ID'] || '').trim();
+      if (!tid || tid === '#N/A') return false;
+
+      if (overallStartDate || overallEndDate) {
+        const itemDate = parseSheetDate(item['ISSUE_DATE']);
+        if (!itemDate) return false;
+
+        const start = overallStartDate ? startOfDay(new Date(overallStartDate)) : null;
+        const end = overallEndDate ? endOfDay(new Date(overallEndDate)) : null;
+
+        if (start && end) {
+          return isWithinInterval(itemDate, { start, end });
+        } else if (start) {
+          return itemDate >= start;
+        } else if (end) {
+          return itemDate <= end;
+        }
+      }
+      return true;
+    });
+  }, [freeBsData, overallStartDate, overallEndDate]);
+
   const stats = {
     total: filteredData.length,
     uniqueGlids: new Set(filteredData.map(d => d.buyerGlid)).size,
@@ -552,6 +638,11 @@ export default function App() {
       (d.ticketStage || '').trim() === 'PPP - Case Study'
     ).length;
 
+    // BS Metrics
+    const paidBsCount = filteredPaidBsData.length;
+    const freeBsCount = filteredFreeBsData.length;
+    const totalBsTickets = paidBsCount + freeBsCount;
+
     // --- Funnel Calculations ---
     
     // Unresolved Tickets
@@ -609,6 +700,9 @@ export default function App() {
       tsClosedResolved,
       tsClosedUnresolved,
       tsClosedPppApplicable,
+      paidBsCount,
+      freeBsCount,
+      totalBsTickets,
       totalUnresolved,
       unresolvedAdvancePaid,
       pppCases,
@@ -2816,6 +2910,37 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex-1 flex flex-col gap-4">
+                    {/* BS Tickets Row */}
+                    <div className="grid grid-cols-3 gap-3 mb-2">
+                      <div 
+                        className="bg-blue-50/50 rounded-xl p-3 border border-blue-100/50 cursor-pointer hover:bg-blue-50 transition-all"
+                        onClick={(e) => { e.stopPropagation(); openGenericModal('Total BS Tickets', [...filteredPaidBsData, ...filteredFreeBsData]); }}
+                      >
+                        <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Total BS Tickets</p>
+                        <p className="text-lg font-black text-slate-800 tracking-tight">
+                          {overallMetrics.totalBsTickets.toLocaleString()}
+                        </p>
+                      </div>
+                      <div 
+                        className="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100/50 cursor-pointer hover:bg-indigo-50 transition-all"
+                        onClick={(e) => { e.stopPropagation(); openGenericModal('Paid BS Tickets', filteredPaidBsData); }}
+                      >
+                        <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-1">Paid BS</p>
+                        <p className="text-lg font-black text-slate-800 tracking-tight">
+                          {overallMetrics.paidBsCount.toLocaleString()}
+                        </p>
+                      </div>
+                      <div 
+                        className="bg-slate-50/50 rounded-xl p-3 border border-slate-100/50 cursor-pointer hover:bg-slate-100 transition-all"
+                        onClick={(e) => { e.stopPropagation(); openGenericModal('Free BS Tickets', filteredFreeBsData); }}
+                      >
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Free BS</p>
+                        <p className="text-lg font-black text-slate-800 tracking-tight">
+                          {overallMetrics.freeBsCount.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
                     {/* (a) Total TS Clients Tickets Issued */}
                     <div 
                       className="bg-amber-50/30 rounded-2xl p-6 border border-amber-100/50 group-hover:border-amber-200 transition-all duration-300 cursor-pointer hover:bg-amber-50/50"
