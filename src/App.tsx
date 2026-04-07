@@ -78,6 +78,11 @@ export default function App() {
   // Overall Tab Filter States
   const [overallStartDate, setOverallStartDate] = useState<string>('');
   const [overallEndDate, setOverallEndDate] = useState<string>('');
+  const [tsTicketCount, setTsTicketCount] = useState<number | null>(null);
+  const [paidBsCount, setPaidBsCount] = useState<number | null>(null);
+  const [freeBsCount, setFreeBsCount] = useState<number | null>(null);
+  const [tsTicketLoading, setTsTicketLoading] = useState<boolean>(false);
+  const [tsTicketError, setTsTicketError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -141,6 +146,34 @@ export default function App() {
     loadPPPInScopeData();
     loadTSClosedData();
   }, []);
+
+  useEffect(() => {
+    const fetchTsTicketCount = async () => {
+      setTsTicketLoading(true);
+      setTsTicketError(null);
+      try {
+        const params = new URLSearchParams();
+        if (overallStartDate) params.append('start_date', overallStartDate);
+        if (overallEndDate) params.append('end_date', overallEndDate);
+        
+        const response = await fetch(`/api/tickets?${params.toString()}`);
+        if (!response.ok) throw new Error('Failed to fetch ticket counts');
+        const data = await response.json();
+        setTsTicketCount(data.tsTicketCount);
+        setPaidBsCount(data.paidBsCount);
+        setFreeBsCount(data.freeBsCount);
+      } catch (err) {
+        console.error('Error fetching TS ticket count:', err);
+        setTsTicketError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setTsTicketLoading(false);
+      }
+    };
+
+    if (activeTab === 'overall') {
+      fetchTsTicketCount();
+    }
+  }, [overallStartDate, overallEndDate, activeTab]);
 
   // Helper to parse dates from various formats
   const parseSheetDate = (dateStr: string) => {
@@ -2700,8 +2733,85 @@ export default function App() {
                       <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Tickets</h3>
                     </div>
                   </div>
-                  <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
-                    <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">Ticket Analysis Content</p>
+                  <div className="flex-1 flex flex-col gap-4">
+                    {/* Top Row: BS Tickets */}
+                    <div className="grid grid-cols-3 gap-4">
+                      {/* Total BS Tickets */}
+                      <div className="bg-amber-50/30 rounded-2xl p-4 border border-amber-100/50 group-hover:border-amber-200 transition-all duration-300">
+                        <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Total BS Tickets</p>
+                        <div className="flex items-center gap-2">
+                          {tsTicketLoading ? (
+                            <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
+                          ) : tsTicketError ? (
+                            <AlertCircle className="w-4 h-4 text-rose-500" />
+                          ) : (
+                            <p className="text-xl font-black text-slate-800 tracking-tight">
+                              {((paidBsCount || 0) + (freeBsCount || 0)).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Paid BS Tickets */}
+                      <div className="bg-amber-50/30 rounded-2xl p-4 border border-amber-100/50 group-hover:border-amber-200 transition-all duration-300">
+                        <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Paid BS Tickets</p>
+                        <div className="flex items-center gap-2">
+                          {tsTicketLoading ? (
+                            <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
+                          ) : tsTicketError ? (
+                            <AlertCircle className="w-4 h-4 text-rose-500" />
+                          ) : (
+                            <p className="text-xl font-black text-slate-800 tracking-tight">
+                              {(paidBsCount || 0).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Free BS Tickets */}
+                      <div className="bg-amber-50/30 rounded-2xl p-4 border border-amber-100/50 group-hover:border-amber-200 transition-all duration-300">
+                        <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Free BS Tickets</p>
+                        <div className="flex items-center gap-2">
+                          {tsTicketLoading ? (
+                            <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
+                          ) : tsTicketError ? (
+                            <AlertCircle className="w-4 h-4 text-rose-500" />
+                          ) : (
+                            <p className="text-xl font-black text-slate-800 tracking-tight">
+                              {(freeBsCount || 0).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Row: Total TS Clients Tickets Issued */}
+                    <div className="bg-amber-50/30 rounded-2xl p-6 border border-amber-100/50 group-hover:border-amber-200 transition-all duration-300">
+                      <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3">Total TS Clients Tickets Issued</p>
+                      <div className="flex items-center gap-4">
+                        {tsTicketLoading ? (
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="w-8 h-8 text-amber-600 animate-spin" />
+                            <span className="text-xs font-bold text-slate-400 animate-pulse">Fetching from Redshift...</span>
+                          </div>
+                        ) : tsTicketError ? (
+                          <div className="flex items-center gap-2 text-rose-500">
+                            <AlertCircle className="w-5 h-5" />
+                            <span className="text-xs font-bold">Error loading data</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-5xl font-black text-slate-800 tracking-tight">
+                              {tsTicketCount !== null ? tsTicketCount.toLocaleString() : '0'}
+                            </p>
+                            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 mt-4 uppercase tracking-widest">
+                        {tsTicketLoading ? 'Please wait...' : 'Live from Amazon Redshift'}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
