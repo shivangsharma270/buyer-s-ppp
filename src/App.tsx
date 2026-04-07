@@ -54,6 +54,19 @@ export default function App() {
   const [tsClosedError, setTsClosedError] = useState<string | null>(null);
   const [selectedTsClosedRow, setSelectedTsClosedRow] = useState<TSClosedTicketsRow | null>(null);
 
+  // Generic Modal States
+  const [genericModalOpen, setGenericModalOpen] = useState(false);
+  const [genericModalData, setGenericModalData] = useState<any[]>([]);
+  const [genericModalTitle, setGenericModalTitle] = useState('');
+  const [genericModalSearch, setGenericModalSearch] = useState('');
+
+  const openGenericModal = (title: string, data: any[]) => {
+    setGenericModalTitle(title);
+    setGenericModalData(data);
+    setGenericModalOpen(true);
+    setGenericModalSearch('');
+  };
+
   // Filter States
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -398,6 +411,46 @@ export default function App() {
     });
     return Array.from(keys);
   }, [pppInScopeData]);
+
+  const filteredGenericModalData = useMemo(() => {
+    if (!genericModalSearch) return genericModalData;
+    const term = genericModalSearch.toLowerCase();
+    return genericModalData.filter(item => {
+      return Object.values(item).some(val => 
+        String(val).toLowerCase().includes(term)
+      );
+    });
+  }, [genericModalData, genericModalSearch]);
+
+  const genericModalHeaders = useMemo(() => {
+    if (genericModalData.length === 0) return [];
+    const keys = new Set<string>();
+    genericModalData.forEach(item => {
+      Object.keys(item).forEach(key => keys.add(key));
+    });
+    return Array.from(keys);
+  }, [genericModalData]);
+
+  const helpPageTrafficData = useMemo(() => filteredOverallVisitData.filter(d => (d.source || '').toLowerCase().includes('help')), [filteredOverallVisitData]);
+  const vocDataTrafficData = useMemo(() => filteredOverallVisitData.filter(d => (d.source || '').toLowerCase().includes('voc')), [filteredOverallVisitData]);
+  const bsTicketsRaisedData = useMemo(() => filteredOverallVisitData.filter(d => {
+    const tid = (d.ticketId || '').trim();
+    const glid = (d.buyerGlid || '').trim().toLowerCase();
+    return tid && tid !== '#N/A' && glid && glid !== '(not set)';
+  }), [filteredOverallVisitData]);
+  const pppApplicableTicketsTrafficData = useMemo(() => filteredOverallVisitData.filter(d => {
+    const tid = (d.ticketId || '').trim();
+    const glid = (d.buyerGlid || '').trim().toLowerCase();
+    const ppp = (d.pppApplicable || '').trim().toUpperCase();
+    return tid && tid !== '#N/A' && glid && glid !== '(not set)' && ppp === 'YES';
+  }), [filteredOverallVisitData]);
+
+  const tsClosedResolvedData = useMemo(() => filteredOverallTsClosedData.filter(d => (d.ticketStage || '').trim() === 'Resolved'), [filteredOverallTsClosedData]);
+  const tsClosedUnresolvedData = useMemo(() => {
+    const closedTicketIds = new Set(filteredOverallTsClosedData.map(c => c.ticketId));
+    return filteredOverallTsData.filter(d => !closedTicketIds.has(d.id));
+  }, [filteredOverallTsData, filteredOverallTsClosedData]);
+  const tsClosedPppApplicableData = useMemo(() => filteredOverallTsClosedData.filter(d => (d.ticketStage || '').trim() === 'PPP - Case Study'), [filteredOverallTsClosedData]);
 
   const stats = {
     total: filteredData.length,
@@ -2663,7 +2716,10 @@ export default function App() {
               {/* 2x2 Tile Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1">
                 {/* Tile 1: Traffic */}
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-blue-200 transition-all duration-300">
+                <div 
+                  className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-blue-200 transition-all duration-300 cursor-pointer"
+                  onClick={() => openGenericModal('Traffic Data', filteredOverallVisitData)}
+                >
                   <div className="flex items-center gap-3 mb-6">
                     <div className="p-3 bg-blue-50 rounded-2xl group-hover:bg-blue-100 transition-colors">
                       <Users className="w-6 h-6 text-blue-600" />
@@ -2675,7 +2731,10 @@ export default function App() {
                   <div className="flex-1 flex flex-col justify-center gap-4">
                     <div className="bg-slate-50/50 rounded-[2rem] p-6 border border-slate-100 group-hover:border-blue-200 transition-all duration-300">
                       <div className="grid grid-cols-3 gap-4 divide-x divide-slate-200">
-                        <div className="text-center">
+                        <div 
+                          className="text-center cursor-pointer hover:bg-blue-50/50 rounded-xl p-2 transition-all"
+                          onClick={(e) => { e.stopPropagation(); openGenericModal('Total Traffic', filteredOverallVisitData); }}
+                        >
                           <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">Total Traffic</p>
                           <div className="flex flex-col items-center gap-1">
                             <p className="text-2xl font-black text-slate-800 tracking-tight">
@@ -2684,13 +2743,19 @@ export default function App() {
                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                           </div>
                         </div>
-                        <div className="text-center pl-4">
+                        <div 
+                          className="text-center pl-4 cursor-pointer hover:bg-emerald-50/50 rounded-xl p-2 transition-all"
+                          onClick={(e) => { e.stopPropagation(); openGenericModal('Help Page Traffic', helpPageTrafficData); }}
+                        >
                           <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2">Help Page</p>
                           <p className="text-2xl font-black text-slate-800 tracking-tight">
                             {overallMetrics.helpPageTraffic.toLocaleString()}
                           </p>
                         </div>
-                        <div className="text-center pl-4">
+                        <div 
+                          className="text-center pl-4 cursor-pointer hover:bg-amber-50/50 rounded-xl p-2 transition-all"
+                          onClick={(e) => { e.stopPropagation(); openGenericModal('VOC Data Traffic', vocDataTrafficData); }}
+                        >
                           <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">VOC Data</p>
                           <p className="text-2xl font-black text-slate-800 tracking-tight">
                             {overallMetrics.vocDataTraffic.toLocaleString()}
@@ -2700,7 +2765,10 @@ export default function App() {
                     </div>
 
                     {/* BS Tickets Raised Subtile */}
-                    <div className="bg-indigo-50/30 rounded-2xl p-5 border border-indigo-100/50 group-hover:border-indigo-200 transition-all duration-300">
+                    <div 
+                      className="bg-indigo-50/30 rounded-2xl p-5 border border-indigo-100/50 group-hover:border-indigo-200 transition-all duration-300 cursor-pointer hover:bg-indigo-50/50"
+                      onClick={(e) => { e.stopPropagation(); openGenericModal('BS Tickets Raised', bsTicketsRaisedData); }}
+                    >
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">BS Tickets Raised</p>
@@ -2715,7 +2783,10 @@ export default function App() {
                     </div>
 
                     {/* PPP Applicable Tickets Subtile */}
-                    <div className="bg-rose-50/30 rounded-2xl p-5 border border-rose-100/50 group-hover:border-rose-200 transition-all duration-300">
+                    <div 
+                      className="bg-rose-50/30 rounded-2xl p-5 border border-rose-100/50 group-hover:border-rose-200 transition-all duration-300 cursor-pointer hover:bg-rose-50/50"
+                      onClick={(e) => { e.stopPropagation(); openGenericModal('PPP Applicable Tickets (Traffic)', pppApplicableTicketsTrafficData); }}
+                    >
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">PPP Applicable Tickets</p>
@@ -2732,7 +2803,10 @@ export default function App() {
                 </div>
 
                 {/* Tile 2: Tickets */}
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-amber-200 transition-all duration-300">
+                <div 
+                  className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-amber-200 transition-all duration-300 cursor-pointer"
+                  onClick={() => openGenericModal('Tickets Data', filteredOverallTsData)}
+                >
                   <div className="flex items-center gap-3 mb-6">
                     <div className="p-3 bg-amber-50 rounded-2xl group-hover:bg-amber-100 transition-colors">
                       <Ticket className="w-6 h-6 text-amber-600" />
@@ -2743,7 +2817,10 @@ export default function App() {
                   </div>
                   <div className="flex-1 flex flex-col gap-4">
                     {/* (a) Total TS Clients Tickets Issued */}
-                    <div className="bg-amber-50/30 rounded-2xl p-6 border border-amber-100/50 group-hover:border-amber-200 transition-all duration-300">
+                    <div 
+                      className="bg-amber-50/30 rounded-2xl p-6 border border-amber-100/50 group-hover:border-amber-200 transition-all duration-300 cursor-pointer hover:bg-amber-50/50"
+                      onClick={(e) => { e.stopPropagation(); openGenericModal('Total TS Clients Tickets Issued', filteredOverallTsData); }}
+                    >
                       <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3">Total TS Clients Tickets Issued</p>
                       <div className="flex items-center gap-4">
                         <div className="flex items-baseline gap-2">
@@ -2756,7 +2833,10 @@ export default function App() {
                     </div>
 
                     {/* (b) TS Client Closed Tickets */}
-                    <div className="bg-emerald-50/30 rounded-2xl p-6 border border-emerald-100/50 group-hover:border-emerald-200 transition-all duration-300">
+                    <div 
+                      className="bg-emerald-50/30 rounded-2xl p-6 border border-emerald-100/50 group-hover:border-emerald-200 transition-all duration-300 cursor-pointer hover:bg-emerald-50/50"
+                      onClick={(e) => { e.stopPropagation(); openGenericModal('TS Client Closed Tickets', filteredOverallTsClosedData); }}
+                    >
                       <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3">TS Client Closed Tickets</p>
                       <div className="flex items-center gap-4">
                         <div className="flex items-baseline gap-2">
@@ -2769,20 +2849,29 @@ export default function App() {
                       
                       {/* Sub-metrics for Closed Tickets */}
                       <div className="grid grid-cols-3 gap-3 mt-6">
-                        <div className="bg-white/60 rounded-xl p-3 border border-emerald-100/50">
+                        <div 
+                          className="bg-white/60 rounded-xl p-3 border border-emerald-100/50 cursor-pointer hover:bg-white transition-all"
+                          onClick={(e) => { e.stopPropagation(); openGenericModal('Resolved Tickets', tsClosedResolvedData); }}
+                        >
                           <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Resolved</p>
                           <p className="text-lg font-black text-slate-800 tracking-tight">
                             {overallMetrics.tsClosedResolved.toLocaleString()}
                           </p>
                         </div>
-                        <div className="bg-white/60 rounded-xl p-3 border border-emerald-100/50">
+                        <div 
+                          className="bg-white/60 rounded-xl p-3 border border-emerald-100/50 cursor-pointer hover:bg-white transition-all"
+                          onClick={(e) => { e.stopPropagation(); openGenericModal('Unresolved Tickets', tsClosedUnresolvedData); }}
+                        >
                           <p className="text-[9px] font-black text-rose-600 uppercase tracking-widest mb-1">Unresolved</p>
                           <p className="text-lg font-black text-slate-800 tracking-tight">
                             {overallMetrics.tsClosedUnresolved.toLocaleString()}
                           </p>
                         </div>
-                        <div className="bg-white/60 rounded-xl p-3 border border-emerald-100/50">
-                          <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">PPP Case Study</p>
+                        <div 
+                          className="bg-white/60 rounded-xl p-3 border border-emerald-100/50 cursor-pointer hover:bg-white transition-all"
+                          onClick={(e) => { e.stopPropagation(); openGenericModal('PPP - Case Study Tickets', tsClosedPppApplicableData); }}
+                        >
+                          <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">PPP Applicable</p>
                           <p className="text-lg font-black text-slate-800 tracking-tight">
                             {overallMetrics.tsClosedPppApplicable.toLocaleString()}
                           </p>
@@ -2795,7 +2884,10 @@ export default function App() {
                 </div>
 
                 {/* Tile 3: PPP Eligible */}
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-emerald-200 transition-all duration-300">
+                <div 
+                  className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-emerald-200 transition-all duration-300 cursor-pointer"
+                  onClick={() => openGenericModal('PPP Eligible Data', filteredOverallPppInScopeData)}
+                >
                   <div className="flex items-center gap-3 mb-6">
                     <div className="p-3 bg-emerald-50 rounded-2xl group-hover:bg-emerald-100 transition-colors">
                       <CheckCircle2 className="w-6 h-6 text-emerald-600" />
@@ -2806,7 +2898,10 @@ export default function App() {
                   </div>
                   <div className="flex-1 flex flex-col gap-4">
                     {/* (a) PPP Applicable Tickets */}
-                    <div className="bg-emerald-50/30 rounded-2xl p-5 border border-emerald-100/50 group-hover:border-emerald-200 transition-all duration-300">
+                    <div 
+                      className="bg-emerald-50/30 rounded-2xl p-5 border border-emerald-100/50 group-hover:border-emerald-200 transition-all duration-300 cursor-pointer hover:bg-emerald-50/50"
+                      onClick={(e) => { e.stopPropagation(); openGenericModal('PPP Applicable Tickets', filteredOverallPppInScopeData); }}
+                    >
                       <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">PPP Applicable Tickets</p>
                       <p className="text-3xl font-black text-slate-800 tracking-tight">
                         {overallMetrics.pppInScopeCount.toLocaleString()}
@@ -2814,7 +2909,10 @@ export default function App() {
                     </div>
 
                     {/* (b) Disputed Amount */}
-                    <div className="bg-blue-50/30 rounded-2xl p-5 border border-blue-100/50 group-hover:border-blue-200 transition-all duration-300">
+                    <div 
+                      className="bg-blue-50/30 rounded-2xl p-5 border border-blue-100/50 group-hover:border-blue-200 transition-all duration-300 cursor-pointer hover:bg-blue-50/50"
+                      onClick={(e) => { e.stopPropagation(); openGenericModal('Disputed Amount Details', filteredOverallPppInScopeData); }}
+                    >
                       <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Disputed Amount</p>
                       <p className="text-3xl font-black text-slate-800 tracking-tight">
                         ₹{overallMetrics.pppEligibleAmount.toLocaleString()}
@@ -2827,7 +2925,11 @@ export default function App() {
                       <div className="space-y-2">
                         {Object.entries(overallMetrics.refundStatusBifurcation).length > 0 ? (
                           Object.entries(overallMetrics.refundStatusBifurcation).map(([status, count]) => (
-                            <div key={status} className="flex items-center justify-between">
+                            <div 
+                              key={status} 
+                              className="flex items-center justify-between cursor-pointer hover:bg-slate-100/50 rounded p-1 transition-all"
+                              onClick={(e) => { e.stopPropagation(); openGenericModal(`${status} Details`, filteredOverallPppInScopeData.filter(d => (d.refundStatus || 'Unknown').trim() === status)); }}
+                            >
                               <span className="text-xs font-bold text-slate-600 truncate mr-2">{status}</span>
                               <span className="text-xs font-black text-slate-800 bg-white px-2 py-0.5 rounded-full border border-slate-100 shadow-sm">
                                 {count.toLocaleString()}
@@ -2843,7 +2945,10 @@ export default function App() {
                 </div>
 
                 {/* Tile 4: Case Studies */}
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-purple-200 transition-all duration-300">
+                <div 
+                  className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col min-h-[300px] group hover:border-purple-200 transition-all duration-300 cursor-pointer"
+                  onClick={() => openGenericModal('Total Case Studies', filteredCaseStudiesData)}
+                >
                   <div className="flex items-center gap-3 mb-6">
                     <div className="p-3 bg-purple-50 rounded-2xl group-hover:bg-purple-100 transition-colors">
                       <ArrowRight className="w-6 h-6 text-purple-600" />
@@ -2854,7 +2959,7 @@ export default function App() {
                   </div>
                   <div className="flex-1 flex flex-col justify-center gap-4">
                     <div 
-                      onClick={() => setShowCaseStudiesModal(true)}
+                      onClick={(e) => { e.stopPropagation(); setShowCaseStudiesModal(true); }}
                       className="bg-purple-50/30 rounded-2xl p-6 border border-purple-100/50 group-hover:border-purple-200 transition-all cursor-pointer hover:shadow-md active:scale-[0.98]"
                     >
                       <p className="text-xl font-black text-purple-600 uppercase tracking-tight mb-2">Total Case Studies</p>
@@ -3225,6 +3330,94 @@ export default function App() {
                   setCaseStudiesSearch('');
                 }}
                 className="px-6 py-2.5 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {genericModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-7xl bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-slate-50/50">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">{genericModalTitle}</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Showing {filteredGenericModalData.length} entry(ies)
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    value={genericModalSearch}
+                    onChange={(e) => setGenericModalSearch(e.target.value)}
+                    className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-500 w-64"
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    setGenericModalOpen(false);
+                    setGenericModalData([]);
+                  }}
+                  className="text-slate-400 hover:text-slate-700 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto custom-scrollbar">
+              {filteredGenericModalData.length > 0 ? (
+                <div className="min-w-full inline-block align-middle">
+                  <div className="overflow-hidden">
+                    <table className="min-w-full divide-y divide-slate-200">
+                      <thead className="bg-slate-50 sticky top-0 z-10">
+                        <tr>
+                          {genericModalHeaders.map(header => (
+                            <th 
+                              key={header}
+                              className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap"
+                            >
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-slate-100">
+                        {filteredGenericModalData.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                            {genericModalHeaders.map(header => (
+                              <td key={header} className="px-6 py-4 whitespace-nowrap">
+                                <span className="text-sm font-medium text-slate-600">
+                                  {row[header] || '—'}
+                                </span>
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                  <TableIcon className="w-16 h-16 opacity-20 mb-4" />
+                  <p className="text-lg font-bold uppercase tracking-widest">No Data Found</p>
+                  <p className="text-sm mt-2">Try adjusting your filters or search term</p>
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-slate-100 text-right bg-slate-50/50">
+              <button
+                onClick={() => {
+                  setGenericModalOpen(false);
+                  setGenericModalData([]);
+                }}
+                className="px-6 py-2.5 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-900 transition-colors"
               >
                 Close
               </button>
